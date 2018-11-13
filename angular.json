@@ -121,6 +121,46 @@
           }
         }
       }
+    },
+    "rxjs-uploader": {
+      "root": "projects/rxjs-uploader",
+      "sourceRoot": "projects/rxjs-uploader/src",
+      "projectType": "library",
+      "prefix": "lib",
+      "architect": {
+        "build": {
+          "builder": "@angular-devkit/build-ng-packagr:build",
+          "options": {
+            "tsConfig": "projects/rxjs-uploader/tsconfig.lib.json",
+            "project": "projects/rxjs-uploader/ng-package.json"
+          },
+          "configurations": {
+            "production": {
+              "project": "projects/rxjs-uploader/ng-package.prod.json"
+            }
+          }
+        },
+        "test": {
+          "builder": "@angular-devkit/build-angular:karma",
+          "options": {
+            "main": "projects/rxjs-uploader/src/test.ts",
+            "tsConfig": "projects/rxjs-uploader/tsconfig.spec.json",
+            "karmaConfig": "projects/rxjs-uploader/karma.conf.js"
+          }
+        },
+        "lint": {
+          "builder": "@angular-devkit/build-angular:tslint",
+          "options": {
+            "tsConfig": [
+              "projects/rxjs-uploader/tsconfig.lib.json",
+              "projects/rxjs-uploader/tsconfig.spec.json"
+            ],
+            "exclude": [
+              "**/node_modules/**"
+            ]
+          }
+        }
+      }
     }
   },
   "defaultProject": "rxjs-uploader-demo"
