@@ -7,6 +7,7 @@ export interface IUploaderConfig<FileUploadType extends FileUpload = FileUpload>
     fileCountLimit?: number | (() => number);
     fileSizeLimitMb?: number;
     dragAndDropFlagSelector?: string;
+    requestUrl?: string;
     requestOptions?: ((fileUpload?: FileUploadType) => Promise<IUploadRequestOptions>) | IUploadRequestOptions;
     fileUploadType?: Type<FileUploadType>;
     allFilesQueuedCallback?: (fileUploads: FileUploadType[]) => Promise<FileUploadType[]>;

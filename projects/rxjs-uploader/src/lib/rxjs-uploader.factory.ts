@@ -8,48 +8,38 @@ export class UploaderFactory {
     public createUploader<FileUploadType extends FileUpload = FileUpload>(config?: IUploaderConfig<FileUploadType>): Uploader {
         const uploader = new Uploader<FileUploadType>();
         if (config) {
-            const {
-                allowedContentTypes,
-                fileCountLimit,
-                fileSizeLimitMb,
-                requestOptions,
-                fileUploadType,
-                fileUploadedCallback,
-                allFilesUploadedCallback,
-                onFileCountLimitExceeded,
-                dragAndDropFlagSelector,
-                allFilesQueuedCallback,
-            } = config;
-
-            if (typeof allowedContentTypes !== 'undefined') {
-                uploader.setAllowedContentTypes(allowedContentTypes);
+            if (typeof config.allowedContentTypes !== 'undefined') {
+                uploader.setAllowedContentTypes(config.allowedContentTypes);
             }
-            if (typeof fileCountLimit !== 'undefined') {
-                uploader.setFileCountLimit(fileCountLimit);
+            if (typeof config.fileCountLimit !== 'undefined') {
+                uploader.setFileCountLimit(config.fileCountLimit);
             }
-            if (typeof fileSizeLimitMb !== 'undefined') {
-                uploader.setFileSizeLimitMb(fileSizeLimitMb);
+            if (typeof config.fileSizeLimitMb !== 'undefined') {
+                uploader.setFileSizeLimitMb(config.fileSizeLimitMb);
             }
-            if (typeof onFileCountLimitExceeded !== 'undefined') {
-                uploader.setOnFileCountLimitExceeded(onFileCountLimitExceeded);
+            if (typeof config.onFileCountLimitExceeded !== 'undefined') {
+                uploader.setOnFileCountLimitExceeded(config.onFileCountLimitExceeded);
             }
-            if (typeof requestOptions !== 'undefined') {
-                uploader.setRequestOptions(requestOptions);
+            if (typeof config.requestUrl !== 'undefined') {
+                uploader.setRequestUrl(config.requestUrl);
             }
-            if (typeof fileUploadType !== 'undefined') {
-                uploader.setFileUploadType(fileUploadType);
+            if (typeof config.requestOptions !== 'undefined') {
+                uploader.setRequestOptions(config.requestOptions);
             }
-            if (typeof allFilesQueuedCallback !== 'undefined') {
-                uploader.setAllFilesQueuedCallback(allFilesQueuedCallback);
+            if (typeof config.fileUploadType !== 'undefined') {
+                uploader.setFileUploadType(config.fileUploadType);
             }
-            if (typeof fileUploadedCallback !== 'undefined') {
-                uploader.setFileUploadedCallback(fileUploadedCallback);
+            if (typeof config.allFilesQueuedCallback !== 'undefined') {
+                uploader.setAllFilesQueuedCallback(config.allFilesQueuedCallback);
             }
-            if (typeof allFilesUploadedCallback !== 'undefined') {
-                uploader.setAllFilesUploadedCallback(allFilesUploadedCallback);
+            if (typeof config.fileUploadedCallback !== 'undefined') {
+                uploader.setFileUploadedCallback(config.fileUploadedCallback);
             }
-            if (typeof dragAndDropFlagSelector !== 'undefined') {
-                uploader.setDragAndDropFlagSelector(dragAndDropFlagSelector);
+            if (typeof config.allFilesUploadedCallback !== 'undefined') {
+                uploader.setAllFilesUploadedCallback(config.allFilesUploadedCallback);
+            }
+            if (typeof config.dragAndDropFlagSelector !== 'undefined') {
+                uploader.setDragAndDropFlagSelector(config.dragAndDropFlagSelector);
             }
         }
         return uploader;

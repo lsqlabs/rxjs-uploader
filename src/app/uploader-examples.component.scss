@@ -1,0 +1,15 @@
+.uploader-examples {
+    margin-top: 6rem;
+}
+
+.uploader-zone {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border: 4px dashed #e0e0e0;
+    height: 200px;
+
+    &.dragged-over {
+        background: #e0e0e0;
+    }
+}

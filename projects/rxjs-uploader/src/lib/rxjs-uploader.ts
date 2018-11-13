@@ -10,9 +10,10 @@ import {
     Observable,
     of as observableOf,
     Subject,
-    Subscription
+    Subscription,
+    OperatorFunction
 } from 'rxjs';
-import { delay, filter, flatMap, map, scan, switchMap, take, takeUntil, tap } from 'rxjs/operators';
+import { delay, filter, flatMap, map, scan, switchMap, take, takeUntil, mergeAll, withLatestFrom, tap } from 'rxjs/operators';
 import { ProgressState } from './constants/progress-state';
 import { FileUpload } from './models/file-upload';
 import { IUploadRequestOptions, IUploadRequestOptionsPatch } from './models/upload-request-options';
@@ -49,7 +50,7 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
     private _fileUploadType = FileUpload;
     private _allFilesQueuedCallback: (fileUploads: FileUploadType[]) => Promise<FileUploadType[]>;
     private _fileUploadedCallback: (fileUpload: FileUploadType) => Promise<FileUploadType>;
-    private _allFilesUploadedCallback: (fileUploads: FileUploadType[]) => Promise<FileUploadType[]>;
+    private _allFilesUploadedCallback: (fileUploads: FileUploadType[]) => Promise<FileUploadType[]> | void;
     private _dropZoneEventListenersMap =
         new Map<UploaderDropZoneTarget, { [key: string]: (event: Event) => any }>();
     private _dragAndDropFlagSelector: string;
@@ -81,79 +82,18 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
         return fileInputElement;
     }
 
-    // Public API - workhorse methods.
+    // Public API.
     /**
      * All-in-one method for uploading. Takes an array of `input[type="file"]`s and an optional array of
      * drop zone target elements and returns an observable of `FileUpload`s, executing the uploads immediately.
      */
-    public streamFileUploads(inputElements: HTMLInputElement[], dropZoneElements?: UploaderDropZoneTarget[]): Observable<FileUploadType[]> {
-        return this._streamFileUploads(
-            this.registerSources(inputElements, dropZoneElements)
-        );
-    }
-
-    /**
-     * Simpler method if the user just wants to provide a list of FileUploads that they
-     * got from `registerInput()` or `registerDropZone()`.
-     */
-    public executeFileUploads(fileUploads: FileUploadType[]): Observable<FileUploadType[]> {
-        return this._streamFileUploads(
-            observableOf(fileUploads)
-        );
-    }
-
-    /** Simplest method, if the user just wants to provide a list of files. */
-    public uploadFiles(files: File[] | FileList): Observable<FileUploadType[]> {
-        return this._streamFileUploads(
-            this._createFileUploads(files)
-        );
-    }
-
-    /**
-     * Returns a stream of `FileUpload`s directly from their sources (one or more file inputs or drop
-     * zones), without executing the upload. If you need to consume the pre-uploaded
-     * `FileUpload`s, use this method and pass the resulting `FileUpload[]` into `executeFileUploads`.
-     */
-    public registerSources(
-        inputElements: HTMLInputElement[],
-        dropZoneElements?: UploaderDropZoneTarget[]
+    public streamFileUploads(
+        inputElements: HTMLInputElement[] | HTMLInputElement,
+        dropZoneElements?: UploaderDropZoneTarget[] | UploaderDropZoneTarget
     ): Observable<FileUploadType[]> {
-        const mergeArgs: Observable<FileUploadType[] | null>[] = [];
-        let shouldReset = false;
-
-        if ((!inputElements || !inputElements.length) && (!dropZoneElements || !dropZoneElements.length)) {
-            throw new Error('You must pass in at least one file source.');
-        }
-        if (inputElements && typeof inputElements.forEach === 'function') {
-            inputElements.forEach((inputElement) => {
-                const inputElementStream = this.registerInput(inputElement);
-                mergeArgs.push(inputElementStream);
-            });
-        }
-        if (dropZoneElements && typeof dropZoneElements.forEach === 'function') {
-            dropZoneElements.forEach((element) => {
-                const dropZoneElementStream = this.registerDropZone(element);
-                mergeArgs.push(dropZoneElementStream);
-            });
-        }
-        mergeArgs.push(this._fileUploadsStreamResetSubject.asObservable());
-
-        return merge(...mergeArgs)
-            .pipe(
-                tap((fileUploads) => {
-                    if (fileUploads === null) {
-                        shouldReset = true;
-                    }
-                }),
-                scan<FileUploadType[]>((accFileUploads, currentFileUploads) => {
-                    if (shouldReset) {
-                        shouldReset = false;
-                        return [];
-                    }
-                    return uniq([ ...accFileUploads, ...currentFileUploads ]);
-                }, []),
-                map((fileUploads) => fileUploads.filter((fileUpload) => !fileUpload.isMarkedForRemoval))
-            );
+        return this._streamFileUploads(
+            this._registerSources(inputElements, dropZoneElements)
+        );
     }
 
     public clear(): void {
@@ -163,60 +103,6 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
         this._fileInputElements.forEach((inputElement) => {
             inputElement.value = '';
         });
-    }
-
-    /**
-     * Takes an `input[type="file"]` and returns a stream of `FileUpload`s based on changes to the
-     * input's `files` property.
-     */
-    public registerInput(inputElement: HTMLInputElement): Observable<FileUploadType[]> {
-        const fileUploadsSubject = new Subject<FileUploadType[]>();
-        this._fileInputElements = uniq([...this._fileInputElements, inputElement]);
-        this._subscribeTo(fromEvent(inputElement, 'change'), async () => {
-            fileUploadsSubject.next(
-                await this._handleFilesAdded(inputElement)
-            );
-            // Setting `value` to '' makes it so 'change' fires even if they select the
-            // same file again.
-            inputElement.value = '';
-        });
-        return fileUploadsSubject.asObservable()
-            .pipe(map((fileUploads) => fileUploads.filter((fileUpload) => !fileUpload.isMarkedForRemoval)));
-    }
-
-    /**
-     * Takes an HTML element (`document` and `window` are valid) to act as a drop zone and returns a
-     * stream of `FileUpload`s based `drop` events heard on the element.
-     */
-    public registerDropZone(element: UploaderDropZoneTarget = document): Observable<FileUploadType[]> {
-        const fileUploadsSubject = new Subject<FileUploadType[]>();
-        this._fileDropZoneElements = uniq([...this._fileDropZoneElements, element]);
-        let eventListenersMap: { [key: string]: (event: Event) => any };
-        if (this._dropZoneEventListenersMap.has(element)) {
-            eventListenersMap = this._dropZoneEventListenersMap.get(element);
-        } else {
-            this._dropZoneEventListenersMap.set(element, {});
-            eventListenersMap = this._dropZoneEventListenersMap.get(element);
-            eventListenersMap.dragenter = (e) => this._stopDragEvent(e);
-            eventListenersMap.dragover = (e: MouseEvent) => this._handleDragOver(e);
-            eventListenersMap.dragexit = (e) => this._handleDragExit(e);
-            eventListenersMap.drop = async (e) => {
-                fileUploadsSubject.next(await this._handleDrop(e));
-            };
-            Object.keys(eventListenersMap).forEach((eventName) => {
-                element.addEventListener(eventName, eventListenersMap[eventName], false);
-            });
-        }
-        this._subscribeTo(this._fileUploadsStreamResetSubject, () => {
-            eventListenersMap = this._dropZoneEventListenersMap.get(element);
-            if (eventListenersMap) {
-                Object.keys(eventListenersMap).forEach((eventName) => {
-                    element.removeEventListener(eventName, eventListenersMap[eventName]);
-                });
-            }
-        });
-        return fileUploadsSubject.asObservable()
-            .pipe(map((fileUploads) => fileUploads.filter((fileUpload) => !fileUpload.isMarkedForRemoval)));
     }
 
     // Builder methods.
@@ -237,6 +123,18 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
 
     public setOnFileCountLimitExceeded(fn: (fileCountLimit: number) => void): this {
         this._onFileCountLimitExceeded = fn;
+        return this;
+    }
+
+    public setRequestUrl(url: string): this {
+        if (!this._requestOptions) {
+            this._requestOptions = {};
+        }
+        this._requestOptions = {
+            ...this._requestOptions,
+            url
+        };
+        this._areRequestOptionsSet = true;
         return this;
     }
 
@@ -289,20 +187,118 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
         return this;
     }
 
-    public setAllFilesUploadedCallback(callback: (fileUploads: FileUploadType[]) => Promise<FileUploadType[]>): this {
+    public setAllFilesUploadedCallback(callback: (fileUploads: FileUploadType[]) => Promise<FileUploadType[]> | void): this {
         this._allFilesUploadedCallback = callback;
         return this;
     }
 
     // Private methods.
-    private _subscribeTo<T = any>(
+    private _registerSources(
+        inputElements: HTMLInputElement[] | HTMLInputElement,
+        dropZoneElements?: UploaderDropZoneTarget[] | UploaderDropZoneTarget
+    ): Observable<FileUploadType[]> {
+        const mergeArgs: Observable<FileUploadType[] | null>[] = [];
+        let _inputElements: HTMLInputElement[];
+        let _dropZoneElements: UploaderDropZoneTarget[];
+
+        if (inputElements && typeof (inputElements as HTMLInputElement[]).forEach !== 'function') {
+            _inputElements = [ (inputElements as HTMLInputElement) ];
+        } else {
+            _inputElements = inputElements as HTMLInputElement[];
+        }
+
+        if (dropZoneElements && typeof (dropZoneElements as UploaderDropZoneTarget[]).forEach !== 'function') {
+            _dropZoneElements = [ (dropZoneElements as UploaderDropZoneTarget) ];
+        } else {
+            _dropZoneElements = dropZoneElements as UploaderDropZoneTarget[];
+        }
+
+        if ((!_inputElements || !_inputElements.length) && (!_dropZoneElements || !_dropZoneElements.length)) {
+            throw new Error('You must pass in at least one file source.');
+        }
+        if (_inputElements && typeof _inputElements.forEach === 'function') {
+            _inputElements.forEach((inputElement) => {
+                const inputElementStream = this._registerInput(inputElement);
+                mergeArgs.push(inputElementStream);
+            });
+        }
+        if (_dropZoneElements && typeof _dropZoneElements.forEach === 'function') {
+            _dropZoneElements.forEach((element) => {
+                const dropZoneElementStream = this._registerDropZone(element);
+                mergeArgs.push(dropZoneElementStream);
+            });
+        }
+        mergeArgs.push(this._fileUploadsStreamResetSubject.asObservable());
+
+        return merge(...mergeArgs)
+            .pipe(this._concatFileUploadArrays());
+    }
+
+    private _registerInput(inputElement: HTMLInputElement): Observable<FileUploadType[]> {
+        const fileUploadsSubject = new Subject<FileUploadType[]>();
+        this._fileInputElements = uniq([...this._fileInputElements, inputElement]);
+        const isSingleFileInput = this._fileInputElements.length === 1 && !inputElement.multiple;
+
+        if (this._allowedContentTypes.length && this._allowedContentTypes.indexOf('*') === -1) {
+            this._fileInputElements.forEach((fileInputElement) => {
+                fileInputElement.setAttribute('accept', this._allowedContentTypes.join(','));
+            });
+        }
+
+        fromEvent(inputElement, 'change').subscribe(async () => {
+            if (isSingleFileInput) {
+                fileUploadsSubject.next([]);
+            }
+            fileUploadsSubject.next(
+                await this._handleFilesAdded(inputElement)
+            );
+            // Setting `value` to '' makes it so 'change' fires even if they select the
+            // same file again.
+            inputElement.value = '';
+        });
+        return fileUploadsSubject.asObservable()
+            .pipe(map((fileUploads) => fileUploads.filter((fileUpload) => !fileUpload.isMarkedForRemoval)));
+    }
+
+    private _registerDropZone(element: UploaderDropZoneTarget = document): Observable<FileUploadType[]> {
+        const fileUploadsSubject = new Subject<FileUploadType[]>();
+        this._fileDropZoneElements = uniq([...this._fileDropZoneElements, element]);
+        let eventListenersMap: { [key: string]: (event: Event) => any };
+        if (this._dropZoneEventListenersMap.has(element)) {
+            eventListenersMap = this._dropZoneEventListenersMap.get(element);
+        } else {
+            this._dropZoneEventListenersMap.set(element, {});
+            eventListenersMap = this._dropZoneEventListenersMap.get(element);
+            eventListenersMap.dragenter = (e) => this._stopDragEvent(e);
+            eventListenersMap.dragover = (e: MouseEvent) => this._handleDragOver(e);
+            eventListenersMap.dragleave = (e) => this._handleDragLeave(e);
+            eventListenersMap.drop = async (e) => {
+                fileUploadsSubject.next(await this._handleDrop(e));
+            };
+            Object.keys(eventListenersMap).forEach((eventName) => {
+                element.addEventListener(eventName, eventListenersMap[eventName], false);
+            });
+        }
+        this._fileUploadsStreamResetSubject.subscribe(() => {
+            eventListenersMap = this._dropZoneEventListenersMap.get(element);
+            if (eventListenersMap) {
+                Object.keys(eventListenersMap).forEach((eventName) => {
+                    element.removeEventListener(eventName, eventListenersMap[eventName]);
+                });
+            }
+        });
+        return fileUploadsSubject.asObservable()
+            .pipe(map((fileUploads) => fileUploads.filter((fileUpload) => !fileUpload.isMarkedForRemoval)));
+    }
+
+    private _subscribeTemporarily<T = any>(
         observable: Observable<T>,
-        successCallback: (...args: any[]) => any,
+        successCallback: (value: T) => any,
         errorCallback?: (...args: any[]) => any
     ): void {
         this._subscriptions.push(
             observable.subscribe(
-                (...args) => successCallback(...args),
+                (value) => successCallback(value),
                 (...args) => typeof errorCallback === 'function' ? errorCallback(...args) : {}
             )
         );
@@ -346,14 +342,10 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
     }
 
     private _streamFileUploads(fileUploadsStream: Observable<FileUploadType[]>): Observable<FileUploadType[]> {
-        const mapToMergedIsMarkedForRemovalStream = flatMap((fileUploads: FileUploadType[]) =>
-            merge(...fileUploads.map((fileUpload) => fileUpload.isMarkedForRemovalStream))
-                .pipe(map(() => fileUploads))
-        );
-
         return merge(
             fileUploadsStream,
-            this._fileUploadsStreamResetSubject.asObservable()
+            this._fileUploadsStreamResetSubject.asObservable(),
+            fileUploadsStream.pipe(this._mergeIsMarkedForRemovalStreams())
         )
             .pipe(
                 this._concatFileUploadArrays(),
@@ -370,12 +362,7 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
                         return this._executeFileUploads(fileUploads);
                     }
                 }),
-                this._concatFileUploadArrays(),
-                mapToMergedIsMarkedForRemovalStream,
-                // Make sure we're only streaming files that haven't been marked for removal.
-                map((fileUploads) =>
-                    fileUploads.filter((fileUpload) =>
-                        !fileUpload.isMarkedForRemoval))
+                this._concatFileUploadArrays()
             );
     }
 
@@ -403,7 +390,12 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
                 .pipe(
                     switchMap((_fileUploads) => {
                         if (_fileUploads.every((fileUpload) => fileUpload.uploaded)) {
-                            return observableFrom(this._allFilesUploadedCallback(_fileUploads));
+                            const promiseOrVoid = this._allFilesUploadedCallback(_fileUploads);
+                            if (promiseOrVoid instanceof Promise) {
+                                return observableFrom(promiseOrVoid);
+                            } else {
+                                return observableOf(_fileUploads);
+                            }
                         }
                         return observableOf(_fileUploads);
                     })
@@ -432,7 +424,7 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
             fileUploadSubject.next(_fileUpload);
         };
 
-        this._subscribeTo(
+        this._subscribeTemporarily(
             fileUpload.executeStream.pipe(filter((shouldExecute) => shouldExecute)),
             () => {
                 // TODO: Refactor to use HttpClient. Will require resolving the issue with Cloudinary's
@@ -443,7 +435,7 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
                 const xhrErrorStream = fromEvent(xhr, 'error');
                 xhr.withCredentials = false;
 
-                this._subscribeTo(
+                this._subscribeTemporarily(
                     merge(progressStream, completedStream)
                         .pipe(
                             delay(0),
@@ -490,7 +482,7 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
                     (errorResponse) => handleError(errorResponse)
                 );
 
-                this._subscribeTo(xhrErrorStream, (xhrError) => {
+                this._subscribeTemporarily(xhrErrorStream, (xhrError) => {
                     let errorMessage: any;
                     try {
                         errorMessage = JSON.stringify(xhrError);
@@ -502,6 +494,13 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
 
                 xhr.open(request.method, request.url, true);
                 xhr.send(request.body);
+
+                fileUpload.isMarkedForRemovalStream
+                    .pipe(
+                        filter((isMarkedForRemoval) => isMarkedForRemoval),
+                        take(1)
+                    )
+                    .subscribe(() => xhr.abort());
 
                 this._fileUploadsStreamResetSubject
                     .pipe(take(1))
@@ -570,7 +569,7 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
         return [];
     }
 
-    private _handleDragExit(event: Event): void {
+    private _handleDragLeave(event: Event): void {
         if (this._canDragAndDrop()) {
             this._stopDragEvent(event);
             this._isDraggedOverSubject.next(false);
@@ -624,12 +623,20 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
         return false;
     }
 
+    private _mergeIsMarkedForRemovalStreams(): OperatorFunction<FileUploadType[], FileUploadType[]> {
+        return flatMap<FileUploadType[], FileUploadType[]>((fileUploads) => merge(
+            ...fileUploads.map((fileUpload) =>
+                fileUpload.isMarkedForRemovalStream.pipe(
+                    filter((isMarkedForRemoval) => isMarkedForRemoval),
+                    map(() => fileUploads)
+                )
+            )
+        ));
+    }
+
     private _concatFileUploadArrays(): MonoTypeOperatorFunction<FileUploadType[]> {
-        let didExceedFileCountLimit = false;
         // This `scan` (which behaves similarly to `Array.prototype.reduce`) does the bulk
         // of state management for `Uploader`.
-        //   - If `shouldReset` is `true`, it immediately returns (sets the accumulator to)
-        //     an empty array.
         //   - If our `fileUploadsStream` is coming from a file input's `change` event,
         //     we'll be receiving a new array based on `input.files` any time that `change`
         //     event fires. So we might get `[fileUpload1]`, then `[fileUpload1, fileUpload2]`,
@@ -669,13 +676,8 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
                     fileUpload.markForRemoval();
                 });
 
-                if (!didExceedFileCountLimit) {
-                    this._onFileCountLimitExceeded(this._getFileCountLimit());
-                    didExceedFileCountLimit = true;
-                }
+                this._onFileCountLimitExceeded(this._getFileCountLimit());
                 return previousAccFileUploads;
-            } else {
-                didExceedFileCountLimit = false;
             }
 
             return accFileUploads;

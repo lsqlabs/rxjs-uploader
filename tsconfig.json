@@ -18,10 +18,7 @@
     ],
     "paths": {
       "rxjs-uploader": [
-        "dist/rxjs-uploader"
-      ],
-      "rxjs-uploader/*": [
-        "dist/rxjs-uploader/*"
+        "projects/rxjs-uploader/src/public_api"
       ]
     }
   }
