@@ -34,7 +34,6 @@ export class UploaderSimpleExampleComponent implements AfterViewInit {
 
         // Buld the uploader and create the stream.
         const fileUploads$ = uploader
-            .setRequestOptions({ method: HttpMethod.Post, url: '' })
             .setRequestUrl('https://www.mocky.io/v2/5185415ba171ea3a00704eed')
             .setAllFilesUploadedCallback(
                 (fileUploads) => alert(`Uploaded ${fileUploads.length} files!`)
