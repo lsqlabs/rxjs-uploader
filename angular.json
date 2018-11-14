@@ -25,7 +25,9 @@
             "styles": [
               "src/styles.scss"
             ],
-            "scripts": []
+            "scripts": [],
+            "baseHref" : "/rxjs-uploader/",
+            "deployUrl": "/rxjs-uploader/"
           },
           "configurations": {
             "production": {
