@@ -6,16 +6,7 @@ import { HttpMethod } from './http-method';
 
 const uploadSuccessOrRedirectCode = /^[23]/;
 
-export interface IFileUpload {
-    file?: File;
-    previewUrl?: string;
-    url?: string;
-    pages?: number;
-    id?: Symbol;
-    progress?: IProgress;
-}
-
-export class FileUpload implements IFileUpload {
+export class FileUpload {
     private _id: Symbol;
     public progress: IProgress = {
         percent: 0,
@@ -24,13 +15,9 @@ export class FileUpload implements IFileUpload {
     public response: Response;
     public responseCode: number;
     public responseBody: any;
-    // public imageKey?: Guid;
     public previewUrl?: string;
     public url?: string;
     public pages?: number;
-    // public linkedFileUploads: FileUpload[] = [];
-    // public linkedFileUploadsCount = 0;
-    // public isMobileUpload?: boolean;
     public uploadHasStarted = false;
     private _rejected?: boolean;
     private _requestOptions: IUploadRequestOptions = {
@@ -83,9 +70,6 @@ export class FileUpload implements IFileUpload {
             if (this.response && this.response.status) {
                 return !this.response.status.toString().match(uploadSuccessOrRedirectCode);
             }
-            // if (this.response instanceof ErrorResponse) {
-            //     return !this.response.code.toString().match(uploadSuccessOrRedirectCode);
-            // }
         }
         if (!!this.responseCode) {
             return !this.responseCode.toString().match(uploadSuccessOrRedirectCode);
@@ -118,10 +102,11 @@ export class FileUpload implements IFileUpload {
     public createRequest(): {
         method: HttpMethod,
         url: string,
-        body: FormData
+        body: FormData,
+        headers?: { [key: string]: string }
     } {
-        // Create a new multipart form.
-        const { url, method, formData: body } = this._requestOptions;
+        // Create a new form.
+        const { url, method, formData: body, headers } = this._requestOptions;
         const formData: FormData = new FormData();
         formData.append('file', this.file, this.file.name);
         if (body) {
@@ -131,7 +116,7 @@ export class FileUpload implements IFileUpload {
         }
 
         // Construct the request.
-        return { method, url, body: formData };
+        return { method, url, body: formData, headers };
     }
 
     public reset(): void {
@@ -150,5 +135,9 @@ export class FileUpload implements IFileUpload {
 
     public markForRemoval(): void {
         this._isMarkedForRemovalSubject.next(true);
+    }
+
+    public remove(): void {
+        this.markForRemoval();
     }
 }

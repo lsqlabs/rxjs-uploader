@@ -38,7 +38,7 @@ export class UploaderSimpleExampleComponent implements AfterViewInit {
             .setAllFilesUploadedCallback(
                 (fileUploads) => alert(`Uploaded ${fileUploads.length} files!`)
             )
-            .streamFileUploads(fileInput);
+            .streamFileUploads(fileInput, document);
 
         // Render information about the file uploads in the UI.
         fileUploads$.subscribe((fileUploads) => {

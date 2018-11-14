@@ -16,8 +16,8 @@ import {
 import { delay, filter, flatMap, map, scan, switchMap, take, takeUntil, mergeAll, withLatestFrom, tap } from 'rxjs/operators';
 import { ProgressState } from './constants/progress-state';
 import { FileUpload } from './models/file-upload';
-import { IUploadRequestOptions, IUploadRequestOptionsPatch } from './models/upload-request-options';
-import { UploaderError } from './models/uploader-error';
+import { IUploadRequestOptions } from './models/upload-request-options';
+import { UploaderError, FileSizeLimitExceededError } from './models/uploader-error';
 import { DisallowedContentTypeError, MissingRequestOptionsError } from './models/uploader-error';
 
 /** @see https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/readyState */
@@ -45,8 +45,8 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
     private _fileCountLimit: number | (() => number) = 0; // Anything falsy or < 1 means infinity.
     private _fileSizeLimitMb: number;
     private _onFileCountLimitExceeded: (fileCountLimit: number) => void;
-    private _requestOptions: IUploadRequestOptions | IUploadRequestOptionsPatch;
-    private _requestOptionsReducer: (fileUpload?: FileUploadType) => Promise<IUploadRequestOptions>;
+    private _requestOptions: Partial<IUploadRequestOptions>;
+    private _requestOptionsFactory: (fileUpload?: FileUploadType) => Promise<IUploadRequestOptions>;
     private _fileUploadType = FileUpload;
     private _allFilesQueuedCallback: (fileUploads: FileUploadType[]) => Promise<FileUploadType[]>;
     private _fileUploadedCallback: (fileUpload: FileUploadType) => Promise<FileUploadType>;
@@ -82,6 +82,12 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
         return fileInputElement;
     }
 
+    constructor() {
+        this.errorStream.subscribe((error) => {
+            console.error(`[RxJs Uploader] ${error}`);
+        });
+    }
+
     // Public API.
     /**
      * All-in-one method for uploading. Takes an array of `input[type="file"]`s and an optional array of
@@ -106,6 +112,55 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
     }
 
     // Builder methods.
+    public setRequestUrl(url: string): this {
+        if (!this._requestOptions) {
+            this._requestOptions = {};
+        }
+        this._requestOptions = {
+            ...this._requestOptions,
+            url
+        };
+        this._areRequestOptionsSet = true;
+        return this;
+    }
+
+    public setRequestOptions(
+        factoryOrOptions?: IUploadRequestOptions | ((fileUpload?: FileUploadType) => Promise<IUploadRequestOptions>)
+    ): this {
+        if (typeof factoryOrOptions === 'function') {
+            this._requestOptionsFactory = factoryOrOptions.bind(this);
+        } else {
+            this._requestOptions = factoryOrOptions;
+        }
+        this._areRequestOptionsSet = true;
+        return this;
+    }
+
+    public setRequestOptionsFactory(
+        factory: (fileUpload?: FileUploadType) => Promise<IUploadRequestOptions>
+    ): this {
+        this._requestOptionsFactory = factory;
+        this._areRequestOptionsSet = true;
+        return this;
+    }
+
+    public patchRequestOptions(requestOptionsPatch?: Partial<IUploadRequestOptions>): this {
+        const { formData, url, method } = requestOptionsPatch;
+        if (!this._requestOptions) {
+            this._requestOptions = {};
+        }
+        if (requestOptionsPatch.formData) {
+            this._requestOptions.formData = { ...formData };
+        }
+        if (requestOptionsPatch.url) {
+            this._requestOptions.url = url;
+        }
+        if (requestOptionsPatch.method) {
+            this._requestOptions.method = method;
+        }
+        return this;
+    }
+
     public setAllowedContentTypes(contentTypes: string[]): this {
         this._allowedContentTypes = contentTypes;
         return this;
@@ -126,57 +181,6 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
         return this;
     }
 
-    public setRequestUrl(url: string): this {
-        if (!this._requestOptions) {
-            this._requestOptions = {};
-        }
-        this._requestOptions = {
-            ...this._requestOptions,
-            url
-        };
-        this._areRequestOptionsSet = true;
-        return this;
-    }
-
-    public setRequestOptions(
-        reducerOrOptions?: IUploadRequestOptions | ((fileUpload?: FileUploadType) => Promise<IUploadRequestOptions>)
-    ): this {
-        if (typeof reducerOrOptions === 'function') {
-            this._requestOptionsReducer = reducerOrOptions.bind(this);
-        } else {
-            this._requestOptions = reducerOrOptions;
-        }
-        this._areRequestOptionsSet = true;
-        return this;
-    }
-
-    public setDragAndDropFlagSelector(selector: string): this {
-        this._dragAndDropFlagSelector = selector;
-        return this;
-    }
-
-    public patchRequestOptions(requestOptionsPatch?: IUploadRequestOptionsPatch): this {
-        const { formData, url, method } = requestOptionsPatch;
-        if (!this._requestOptions) {
-            this._requestOptions = {};
-        }
-        if (requestOptionsPatch.formData) {
-            this._requestOptions.formData = { ...formData };
-        }
-        if (requestOptionsPatch.url) {
-            this._requestOptions.url = url;
-        }
-        if (requestOptionsPatch.method) {
-            this._requestOptions.method = method;
-        }
-        return this;
-    }
-
-    public setFileUploadType(fileUploadType: Type<FileUpload>): this {
-        this._fileUploadType = fileUploadType;
-        return this;
-    }
-
     public setAllFilesQueuedCallback(callback: (fileUploads: FileUploadType[]) => Promise<FileUploadType[]>): this {
         this._allFilesQueuedCallback = callback;
         return this;
@@ -190,6 +194,61 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
     public setAllFilesUploadedCallback(callback: (fileUploads: FileUploadType[]) => Promise<FileUploadType[]> | void): this {
         this._allFilesUploadedCallback = callback;
         return this;
+    }
+
+    public setDragAndDropFlagSelector(selector: string): this {
+        this._dragAndDropFlagSelector = selector;
+        return this;
+    }
+
+    public setFileUploadType(fileUploadType: Type<FileUpload>): this {
+        this._fileUploadType = fileUploadType;
+        return this;
+    }
+
+    // Getters.
+    public getRequestUrl(): string {
+        return this._requestOptions.url;
+    }
+
+    public getRequestOptions(): Partial<IUploadRequestOptions> {
+        return this._requestOptions;
+    }
+
+    public getAllowedContentTypes(): string[] {
+        return this._allowedContentTypes;
+    }
+
+    public getFileCountLimit(): number | (() => number) {
+        return this._fileCountLimit;
+    }
+
+    public getFileSizeLimitMb(): number {
+        return this._fileSizeLimitMb;
+    }
+
+    public getOnFileCountLimitExceeded(): (fileCountLimit: number) => void {
+        return this._onFileCountLimitExceeded;
+    }
+
+    public getAllFilesQueuedCallback(): (fileUploads: FileUploadType[]) => Promise<FileUploadType[]> {
+        return this._allFilesQueuedCallback;
+    }
+
+    public getFileUploadedCallback(): (fileUpload: FileUploadType) => Promise<FileUploadType> {
+        return this._fileUploadedCallback;
+    }
+
+    public getAllFilesUploadedCallback(): (fileUploads: FileUploadType[]) => Promise<FileUploadType[]> | void {
+        return this._allFilesUploadedCallback;
+    }
+
+    public getDragAndDropFlagSelector(): string {
+        return this._dragAndDropFlagSelector;
+    }
+
+    public getFileUploadType(): Type<FileUpload> {
+        return this._fileUploadType;
     }
 
     // Private methods.
@@ -228,25 +287,33 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
                 mergeArgs.push(dropZoneElementStream);
             });
         }
+
+        if (this._isSingleFileInput()) {
+            this.setFileCountLimit(1);
+        }
+
         mergeArgs.push(this._fileUploadsStreamResetSubject.asObservable());
 
         return merge(...mergeArgs)
             .pipe(this._concatFileUploadArrays());
     }
 
+    private _isSingleFileInput(): boolean {
+        return this._fileInputElements.every((fileInputElement) => !fileInputElement.multiple);
+    }
+
     private _registerInput(inputElement: HTMLInputElement): Observable<FileUploadType[]> {
         const fileUploadsSubject = new Subject<FileUploadType[]>();
         this._fileInputElements = uniq([...this._fileInputElements, inputElement]);
-        const isSingleFileInput = this._fileInputElements.length === 1 && !inputElement.multiple;
 
         if (this._allowedContentTypes.length && this._allowedContentTypes.indexOf('*') === -1) {
             this._fileInputElements.forEach((fileInputElement) => {
-                fileInputElement.setAttribute('accept', this._allowedContentTypes.join(','));
+                fileInputElement.setAttribute('accept', this.getInputAccept());
             });
         }
 
         fromEvent(inputElement, 'change').subscribe(async () => {
-            if (isSingleFileInput) {
+            if (this._isSingleFileInput()) {
                 fileUploadsSubject.next([]);
             }
             fileUploadsSubject.next(
@@ -321,11 +388,11 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
                     allowedFiles.push(file);
                 } else {
                     this._errorSubject.next(new DisallowedContentTypeError(
-                        `Sorry, ${file.name} failed to upload because its content type, ${mimeType}, is not allowed.`
+                        `${file.name} failed to upload because its content type, ${mimeType}, is not allowed.`
                     ));
                 }
             } else {
-                this._errorSubject.next(new DisallowedContentTypeError(
+                this._errorSubject.next(new FileSizeLimitExceededError(
                     `${file.name} is larger than the limit of ${this._fileSizeLimitMb}MB for a single file. Please compress or split the file into smaller files.`
                 ));
             }
@@ -362,7 +429,7 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
                         return this._executeFileUploads(fileUploads);
                     }
                 }),
-                this._concatFileUploadArrays()
+                this._concatFileUploadArrays(),
             );
     }
 
@@ -427,8 +494,6 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
         this._subscribeTemporarily(
             fileUpload.executeStream.pipe(filter((shouldExecute) => shouldExecute)),
             () => {
-                // TODO: Refactor to use HttpClient. Will require resolving the issue with Cloudinary's
-                // 'access-control-allow-credentials' header.
                 const xhr = new XMLHttpRequest();
                 const progressStream = fromEvent(xhr.upload, 'progress');
                 const completedStream = fromEvent(xhr, 'load');
@@ -493,6 +558,12 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
                 });
 
                 xhr.open(request.method, request.url, true);
+                if (fileUpload.requestOptions.headers) {
+                    Object.keys(fileUpload.requestOptions.headers).forEach((key) => {
+                        const value = fileUpload.requestOptions.headers[key];
+                        xhr.setRequestHeader(key, value);
+                    });
+                }
                 xhr.send(request.body);
 
                 fileUpload.isMarkedForRemovalStream
@@ -523,9 +594,9 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
         fileUploadSubject.next(fileUploadToExecute);
 
         // Construct a request and send it.
-        if (typeof this._requestOptionsReducer === 'function') {
-            const existingRequestOptions: IUploadRequestOptionsPatch = this._requestOptions || {};
-            this._requestOptionsReducer(fileUploadToExecute)
+        if (typeof this._requestOptionsFactory === 'function') {
+            const existingRequestOptions: Partial<IUploadRequestOptions> = this._requestOptions || {};
+            this._requestOptionsFactory(fileUploadToExecute)
                 .then((requestOptions) => {
                     if (requestOptions) {
                         fileUploadToExecute.setRequestOptions({
@@ -647,7 +718,10 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
         //   - If the new accumulated array exceeds the file count limit, invoke the callback
         //     (and make sure it's only invoked once per attempt).
         return scan<FileUploadType[]>((_previousAccFileUploads, _currentFileUploads) => {
-            if (_currentFileUploads === null || !_currentFileUploads.length) {
+            if (
+                _currentFileUploads === null
+                || (this._isSingleFileInput() && !_currentFileUploads.length)
+            ) {
                 return [];
             } else {
                 _currentFileUploads.forEach((fileUpload) => {

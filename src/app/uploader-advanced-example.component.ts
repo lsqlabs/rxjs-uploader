@@ -18,7 +18,13 @@ import {
 
         <div class="mt-4">
             <div *ngFor="let fileUpload of fileUploadsStream | async">
-                <h4>{{ fileUpload.name }}</h4>
+                <h4>
+                    <button class="btn btn-primary-outline"
+                        (click)="fileUpload.remove()">
+                        <b>✕</b>
+                    </button>
+                    {{ fileUpload.name }}
+                </h4>
                 <div id="progress" class="progress">
                     <div class="progress-bar progress-bar-striped"
                         role="progressbar"
@@ -41,7 +47,7 @@ export class UploaderAdvancedExampleComponent implements AfterViewInit {
 
     constructor(private uploaderFactory: UploaderFactory) {
         this.uploader = this.uploaderFactory.createUploader({
-            allowedContentTypes: [ 'image/png', 'image/jpg', 'image/gif' ],
+            allowedContentTypes: [ 'image/png', 'image/jpg', 'image/jpeg', 'image/gif' ],
             requestOptions: async (fileUpload: FileUpload) => {
                 const formData = new FormData();
                 formData.append('filename', fileUpload.name);
