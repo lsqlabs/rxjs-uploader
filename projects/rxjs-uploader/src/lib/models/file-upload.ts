@@ -6,7 +6,42 @@ import { HttpMethod } from './http-method';
 
 const uploadSuccessOrRedirectCode = /^[23]/;
 
-export class FileUpload {
+export interface IFileUpload {
+    progress: IProgress;
+    response: Response;
+    responseCode: number;
+    responseBody: any;
+    url?: string;
+    uploadHasStarted: boolean;
+    executeStream: Observable<boolean>;
+    isMarkedForRemovalStream: Observable<boolean>;
+
+    readonly requestOptions: IUploadRequestOptions;
+    readonly id: Symbol;
+    readonly name: string;
+    readonly progressPercentage: number;
+    readonly uploading: boolean;
+    readonly uploaded: boolean;
+    readonly succeeded: boolean;
+    readonly failed: boolean;
+    readonly rejected: boolean;
+    readonly isMarkedForRemoval: boolean;
+
+    reject(errorResponse?: any): void;
+    setRequestOptions(options: IUploadRequestOptions): void;
+    createRequest(): {
+        method: HttpMethod,
+        url: string,
+        body: FormData,
+        headers?: { [key: string]: string }
+    };
+    reset(): void;
+    retry(): void;
+    markForRemoval(): void;
+    remove(): void;
+}
+
+export class FileUpload implements IFileUpload {
     private _id: Symbol;
     public progress: IProgress = {
         percent: 0,
@@ -15,7 +50,6 @@ export class FileUpload {
     public response: Response;
     public responseCode: number;
     public responseBody: any;
-    public previewUrl?: string;
     public url?: string;
     public pages?: number;
     public uploadHasStarted = false;
@@ -124,7 +158,7 @@ export class FileUpload {
         this.response = null;
         this.responseBody = null;
         this.responseCode = null;
-        this.previewUrl = null;
+        this.url = null;
         this.progress.state = ProgressState.NotStarted;
         this.progress.percent = 0;
     }

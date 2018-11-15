@@ -1,21 +1,27 @@
 import { AfterViewInit, Component } from '@angular/core';
-import { Uploader, HttpMethod } from 'rxjs-uploader';
+import { Uploader } from 'rxjs-uploader';
 
 @Component({
     selector: 'uploader-simple-example',
     template: `
         <div><input id="file-input" type="file"></div>
-        <div class="mt-3">
-            <button class="btn-danger" onclick="rxjsUploader.clear()">Reset</button>
-        </div>
         <div class="mt-4">
-            <div id="files"></div>
-            <div id="progress" class="progress">
-                <div class="progress-bar progress-bar-striped"
-                    role="progressbar"
-                    aria-valuenow="0"
-                    aria-valuemin="0"
-                    aria-valuemax="100">
+            <div class="row">
+                <div id="files" class="col-12"></div>
+            </div>
+            <div class="mt-1 d-flex align-items-center row">
+                <div class="col-9">
+                    <div id="progress" class="progress">
+                        <div class="progress-bar progress-bar-striped"
+                            role="progressbar"
+                            aria-valuenow="0"
+                            aria-valuemin="0"
+                            aria-valuemax="100">
+                        </div>
+                    </div>
+                </div>
+                <div class="col-3">
+                    <button class="btn-danger" onclick="rxjsUploader.clear()">Reset</button>
                 </div>
             </div>
         </div>
@@ -36,7 +42,7 @@ export class UploaderSimpleExampleComponent implements AfterViewInit {
         const fileUploads$ = uploader
             .setRequestUrl('https://www.mocky.io/v2/5185415ba171ea3a00704eed')
             .setAllFilesUploadedCallback(
-                (fileUploads) => alert(`Uploaded ${fileUploads.length} files!`)
+                (fileUploads) => console.log(`Uploaded ${fileUploads.length} files!`)
             )
             .streamFileUploads(fileInput, document);
 
@@ -47,7 +53,7 @@ export class UploaderSimpleExampleComponent implements AfterViewInit {
                 return (acc + curr.progressPercentage) / (index + 1);
             }, 0);
             fileUploads.forEach((fileUpload) => {
-                visualizerHtml += `<div><h4>${fileUpload.name}</h4></div>`;
+                visualizerHtml += `<div class="file-upload"><h4>${fileUpload.name}</h4></div>`;
             });
             files.innerHTML = visualizerHtml;
             progressBar.style.width = `${averageProgress}%`;

@@ -9,15 +9,13 @@ import { Component, ViewEncapsulation } from '@angular/core';
     template: `
         <div class="uploader-examples container">
             <h1 class="text-center mb-5">RxJs Uploader</h1>
-            <div class="row">
-                <div class="col">
-                    <h2 class="mb-4">Simple example</h2>
-                    <uploader-simple-example></uploader-simple-example>
-                </div>
-                <div class="col">
-                    <h2 class="mb-4">Advanced example</h2>
-                    <uploader-advanced-example></uploader-advanced-example>
-                </div>
+            <div class="uploader-example">
+                <h2 class="mb-4">Simple example</h2>
+                <uploader-simple-example></uploader-simple-example>
+            </div>
+            <div class="uploader-example">
+                <h2 class="mb-4">Advanced example</h2>
+                <uploader-advanced-example></uploader-advanced-example>
             </div>
         </div>
     `,

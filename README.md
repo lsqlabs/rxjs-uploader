@@ -24,14 +24,10 @@ const fileUploads$ = new Uploader()
 ```javascript
 const fileUploads$ = new Uploader()
     .setRequestUrl('https://www.mocky.io/v2/5185415ba171ea3a00704eed')
-    .streamFileUploads(document.getElementById('file-input'));
+    .streamFileUploads(document.getElementById('drop-zone'));
 ```
 
 ## Advanced example (using Angular)
-
-```html
-
-```
 
 ```javascript
 @Component({
@@ -43,18 +39,19 @@ const fileUploads$ = new Uploader()
     `
 })
 export class UploaderDemoComponent implements AfterViewInit {
-    public uploader = new Uploader();
-    public fileUploads$ = new Uploader();
+    public fileUploads$: Observable<FileUpload[]>;
+    public hiddenFileInput = Uploader.createFileInputElement('multiple');
+    public uploader = new Uploader()
         .setRequestOptions({
             url: 'https://api.myawesomeservice.com/upload'
         })
-        .setRequestOptionsFactory((fileUpload) => {
+        .setRequestOptionsFactory(async (fileUpload) => {
             return {
-                url: 'https://api.myawesomeservice.com/upload/' + fileUpload.name
+                url: 'https://api.myawesomeservice.com/upload/' + fileUpload.name,
                 headers: {
-                    'content-length': fileUpload.file
+                    'content-length': `${fileUpload.file.size}`
                 }
-            }
+            };
         })
         .setAllowedContentTypes([ 'image/jpeg', 'image/png', 'application/pdf' ])
         .setFileCountLimit(100)
@@ -68,18 +65,79 @@ export class UploaderDemoComponent implements AfterViewInit {
             return new Promise((resolve, reject) => {
                 // Simulating an HTTP call.
                 setTimeout(() => {
-                    console.log(fileUploads.length + ' files are ready to upload')
-                    resolve(fileUploads)
+                    console.log(fileUploads.length + ' files are ready to upload');
+                    resolve(fileUploads);
                 }, 1000);
-            })
+            });
         })
-        .setFileUploadedCallback((fileUpload) => console.log(fileUpload.name + ' was uploaded'))
-        .setAllFilesUploadedCallback((fileUploads) => console.log(fileUploads.length + ' files were uploaded'))
+        .setFileUploadedCallback(async (fileUpload) => {
+            console.log(fileUpload.name + ' was uploaded');
+            return fileUpload;
+        })
+        .setAllFilesUploadedCallback((fileUploads) => console.log(fileUploads.length + ' files were uploaded'));
         
 
     public ngAfterViewInit(): void {
-        this.fileUploads$ = this.uploader
-            .streamFileUploads(document.getElementById('file-input'));
+        this.fileUploads$ = this.uploader.streamFileUploads(hiddenFileInput);
     }
+}
+```
+
+## A few key interfaces
+```typescript
+interface IFileUpload {
+    progress: IProgress;
+    response: Response;
+    responseCode: number;
+    responseBody: any;
+    url?: string;
+    uploadHasStarted: boolean;
+    executeStream: Observable<boolean>;
+    isMarkedForRemovalStream: Observable<boolean>;
+
+    readonly requestOptions: IUploadRequestOptions;
+    readonly id: Symbol;
+    readonly name: string;
+    readonly progressPercentage: number;
+    readonly uploading: boolean;
+    readonly uploaded: boolean;
+    readonly succeeded: boolean;
+    readonly failed: boolean;
+    readonly rejected: boolean;
+    readonly isMarkedForRemoval: boolean;
+
+    reject(errorResponse?: any): void;
+    setRequestOptions(options: IUploadRequestOptions): void;
+    createRequest(): {
+        method: HttpMethod,
+        url: string,
+        body: FormData,
+        headers?: { [key: string]: string }
+    };
+    reset(): void;
+    retry(): void;
+    markForRemoval(): void;
+    remove(): void;
+}
+
+interface IProgress {
+    percent: number;
+    state: ProgressState;
+}
+
+interface IUploadRequestOptions {
+    url: string;
+    method?: HttpMethod;
+    formData?: FormData;
+    headers?: { [key: string]: string };
+}
+
+enum ProgressState {
+    NotStarted,
+    Idle,
+    InProgress,
+    Completed,
+    Failed,
+    Cancelled
 }
 ```

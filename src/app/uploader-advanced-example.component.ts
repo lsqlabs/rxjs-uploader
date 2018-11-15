@@ -13,11 +13,15 @@ import {
         <div #uploaderZone
             class="uploader-zone"
             [ngClass]="{ 'dragged-over': uploader.isDraggedOverStream | async }">
-            <button (click)="selectFiles()">or select files</button>
+            <div class="text-center">
+                <p><b>Drag and drop files here</b></p>
+                <button (click)="selectFiles()">or select files</button>
+            </div>
         </div>
 
         <div class="mt-4">
-            <div *ngFor="let fileUpload of fileUploadsStream | async">
+            <div *ngFor="let fileUpload of fileUploadsStream | async"
+                class="file-upload">
                 <h4>
                     <button class="btn btn-primary-outline"
                         (click)="fileUpload.remove()">

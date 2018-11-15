@@ -1,5 +1,11 @@
 .uploader-examples {
     margin-top: 6rem;
+    max-width: 40rem;
+    text-align: center;
+}
+
+.uploader-example {
+    margin: 5rem 0;
 }
 
 .uploader-zone {
@@ -12,4 +18,8 @@
     &.dragged-over {
         background: #e0e0e0;
     }
+}
+
+.file-upload {
+    text-align: left;
 }
