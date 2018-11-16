@@ -1,14 +1,18 @@
 import { Component, ViewEncapsulation } from '@angular/core';
 
-/**
- * This is a working reference implementation for `Uploader` and should not be imported into
- * a production app.
- */
 @Component({
-    selector: 'uploader-examples',
+    selector: 'app-root',
     template: `
+        <div class="jumbotron">
+            <h1 class="text-center">
+                <img src="assets/upload-icon.svg"
+                    width="50px"
+                    style="margin: -12px 10px 0 0">
+                <!-- Font Awesome by Dave Gandy - https://fortawesome.github.com/Font-Awesome [CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0)] -->
+                RxJs Uploader
+            </h1>
+        </div>
         <div class="uploader-examples container">
-            <h1 class="text-center mb-5">RxJs Uploader</h1>
             <div class="uploader-example">
                 <h2 class="mb-4">Simple example</h2>
                 <uploader-simple-example></uploader-simple-example>
@@ -19,7 +23,7 @@ import { Component, ViewEncapsulation } from '@angular/core';
             </div>
         </div>
     `,
-    styleUrls: [ './uploader-examples.component.scss' ],
+    styleUrls: [ './app.component.scss' ],
     encapsulation: ViewEncapsulation.None
 })
-export class UploaderExamplesComponent { }
+export class AppComponent { }

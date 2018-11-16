@@ -1,4 +1,4 @@
-# Rxjs Uploader
+# RxJs Uploader
 
 A simple RxJs-powered interface for uploading files.
 
