@@ -5,26 +5,22 @@ A simple RxJs-powered interface for uploading files.
 ## Basic example
 
 ```html
-<input id="file-input" type="file">
-<!-- OR -->
-<input id="file-input" type="file" multiple>
+<input id="file-source" type="file">
 ```
-
-```javascript
-const fileUploads$ = new Uploader()
-    .setRequestUrl('https://www.mocky.io/v2/5185415ba171ea3a00704eed')
-    .streamFileUploads(document.getElementById('file-input'));
-```
-
-## Drop zone
+or
 ```html
-<div id="drop-zone"></div>
+<input id="file-source" type="file" multiple>
+```
+or
+```html
+<!-- Drop zone -->
+<div id="file-source"></div>
 ```
 
 ```javascript
 const fileUploads$ = new Uploader()
     .setRequestUrl('https://www.mocky.io/v2/5185415ba171ea3a00704eed')
-    .streamFileUploads(document.getElementById('drop-zone'));
+    .streamFileUploads(document.getElementById('file-source'));
 ```
 
 ## Advanced example (using Angular)
@@ -33,7 +29,6 @@ const fileUploads$ = new Uploader()
 @Component({
     selector: 'uploader-demo',
     template: `
-        <input id="file-input" type="file">
         <button (click)="hiddenFileInput.click()">I'm a prettier alternative to the file input</button>
         <button (click)="uploader.clear()">Cancel all</button>
     `
@@ -78,7 +73,7 @@ export class UploaderDemoComponent implements AfterViewInit {
         
 
     public ngAfterViewInit(): void {
-        this.fileUploads$ = this.uploader.streamFileUploads(hiddenFileInput);
+        this.fileUploads$ = this.uploader.streamFileUploads(this.hiddenFileInput);
     }
 }
 ```
