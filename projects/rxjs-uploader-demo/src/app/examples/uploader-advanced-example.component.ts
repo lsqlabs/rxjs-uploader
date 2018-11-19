@@ -4,8 +4,8 @@ import {
     FileUpload,
     IUploadRequestOptions,
     Uploader,
-    UploaderFactory
 } from 'rxjs-uploader';
+import { UploaderFactory } from '../rxjs-uploader.factory';
 
 @Component({
     selector: 'uploader-advanced-example',

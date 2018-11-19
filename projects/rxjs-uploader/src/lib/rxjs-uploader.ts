@@ -1,4 +1,3 @@
-import { Type } from '@angular/core';
 import { uniq } from 'lodash';
 import {
     BehaviorSubject,
@@ -13,12 +12,13 @@ import {
     Subscription,
     OperatorFunction
 } from 'rxjs';
-import { delay, filter, flatMap, map, scan, switchMap, take, takeUntil, mergeAll, withLatestFrom, tap } from 'rxjs/operators';
+import { delay, filter, flatMap, map, scan, switchMap, take, takeUntil } from 'rxjs/operators';
 import { ProgressState } from './constants/progress-state';
 import { FileUpload } from './models/file-upload';
 import { IUploadRequestOptions } from './models/upload-request-options';
 import { UploaderError, FileSizeLimitExceededError } from './models/uploader-error';
 import { DisallowedContentTypeError, MissingRequestOptionsError } from './models/uploader-error';
+import { IUploaderConfig } from './models/uploader-config';
 
 /** @see https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/readyState */
 export const enum XHRReadyState {
@@ -32,7 +32,7 @@ export type FileUploadSubjectsMap = Map<Symbol, BehaviorSubject<FileUpload>>;
 export type DropZoneTarget = HTMLElement | Document | Window;
 export type FileSource = HTMLInputElement | DropZoneTarget;
 
-const BYTES_PER_MB = 1024 * 1024;
+const BYTES_PER_MB = 1000 * 1000;
 
 export class Uploader<FileUploadType extends FileUpload = FileUpload> {
     private _isDraggedOverSubject = new BehaviorSubject<boolean>(false);
@@ -83,10 +83,46 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
         return fileInputElement;
     }
 
-    constructor() {
+    constructor(config?: IUploaderConfig<FileUploadType>) {
         this.errorStream.subscribe((error) => {
             console.error(`[RxJs Uploader] ${error}`);
         });
+
+        if (config) {
+            if (typeof config.allowedContentTypes !== 'undefined') {
+                this.setAllowedContentTypes(config.allowedContentTypes);
+            }
+            if (typeof config.fileCountLimit !== 'undefined') {
+                this.setFileCountLimit(config.fileCountLimit);
+            }
+            if (typeof config.fileSizeLimitMb !== 'undefined') {
+                this.setFileSizeLimitMb(config.fileSizeLimitMb);
+            }
+            if (typeof config.onFileCountLimitExceeded !== 'undefined') {
+                this.setOnFileCountLimitExceeded(config.onFileCountLimitExceeded);
+            }
+            if (typeof config.requestUrl !== 'undefined') {
+                this.setRequestUrl(config.requestUrl);
+            }
+            if (typeof config.requestOptions !== 'undefined') {
+                this.setRequestOptions(config.requestOptions);
+            }
+            if (typeof config.fileUploadType !== 'undefined') {
+                this.setFileUploadType(config.fileUploadType);
+            }
+            if (typeof config.allFilesQueuedCallback !== 'undefined') {
+                this.setAllFilesQueuedCallback(config.allFilesQueuedCallback);
+            }
+            if (typeof config.fileUploadedCallback !== 'undefined') {
+                this.setFileUploadedCallback(config.fileUploadedCallback);
+            }
+            if (typeof config.allFilesUploadedCallback !== 'undefined') {
+                this.setAllFilesUploadedCallback(config.allFilesUploadedCallback);
+            }
+            if (typeof config.dragAndDropFlagSelector !== 'undefined') {
+                this.setDragAndDropFlagSelector(config.dragAndDropFlagSelector);
+            }
+        }
     }
 
     // Public API.
@@ -199,7 +235,7 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
         return this;
     }
 
-    public setFileUploadType(fileUploadType: Type<FileUpload>): this {
+    public setFileUploadType(fileUploadType: any): this {
         this._fileUploadType = fileUploadType;
         return this;
     }
@@ -245,7 +281,7 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
         return this._dragAndDropFlagSelector;
     }
 
-    public getFileUploadType(): Type<FileUpload> {
+    public getFileUploadType(): any {
         return this._fileUploadType;
     }
 

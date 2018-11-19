@@ -1,4 +1,3 @@
-import { Type } from '@angular/core';
 import { FileUpload } from './file-upload';
 import { IUploadRequestOptions } from './upload-request-options';
 
@@ -9,7 +8,7 @@ export interface IUploaderConfig<FileUploadType extends FileUpload = FileUpload>
     dragAndDropFlagSelector?: string;
     requestUrl?: string;
     requestOptions?: ((fileUpload?: FileUploadType) => Promise<IUploadRequestOptions>) | IUploadRequestOptions;
-    fileUploadType?: Type<FileUploadType>;
+    fileUploadType?: any;
     allFilesQueuedCallback?: (fileUploads: FileUploadType[]) => Promise<FileUploadType[]>;
     fileUploadedCallback?: (fileUpload: FileUploadType) => Promise<FileUploadType>;
     allFilesUploadedCallback?: (fileUploads: FileUploadType[]) => Promise<FileUploadType[]>;

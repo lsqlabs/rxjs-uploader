@@ -2,6 +2,8 @@
 
 A simple RxJs-powered interface for uploading files.
 
+Demo: https://lsqlabs.github.io/rxjs-uploader
+
 ## Basic example
 
 ```html

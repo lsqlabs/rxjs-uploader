@@ -69,17 +69,17 @@
         "test": {
           "builder": "@angular-devkit/build-angular:karma",
           "options": {
-            "main": "src/test.ts",
-            "polyfills": "src/polyfills.ts",
-            "tsConfig": "src/tsconfig.spec.json",
-            "karmaConfig": "src/karma.conf.js",
+            "main": "projects/rxjs-uploader-demo/src/test.ts",
+            "polyfills": "projects/rxjs-uploader-demo/src/polyfills.ts",
+            "tsConfig": "projects/rxjs-uploader-demo/src/tsconfig.spec.json",
+            "karmaConfig": "projects/rxjs-uploader-demo/src/karma.conf.js",
             "styles": [
-              "src/styles.scss"
+              "projects/rxjs-uploader-demo/src/styles.scss"
             ],
             "scripts": [],
             "assets": [
-              "src/favicon.ico",
-              "src/assets"
+              "projects/rxjs-uploader-demo/src/favicon.ico",
+              "projects/rxjs-uploader-demo/src/assets"
             ]
           }
         },
@@ -87,8 +87,8 @@
           "builder": "@angular-devkit/build-angular:tslint",
           "options": {
             "tsConfig": [
-              "src/tsconfig.app.json",
-              "src/tsconfig.spec.json"
+              "projects/rxjs-uploader-demo/src/tsconfig.app.json",
+              "projects/rxjs-uploader-demo/src/tsconfig.spec.json"
             ],
             "exclude": [
               "**/node_modules/**"

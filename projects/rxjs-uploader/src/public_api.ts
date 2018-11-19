@@ -3,7 +3,6 @@
  */
 
 export * from './lib/rxjs-uploader';
-export * from './lib/rxjs-uploader.factory';
 export * from './lib/models/file-upload';
 export * from './lib/models/http-method';
 export * from './lib/models/progress';
