@@ -1,6 +1,11 @@
 {
   "name": "rxjs-uploader-demo",
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "description": "A simple RxJs-powered interface for uploading files.",
+  "author": {
+    "name": "lsqlabs",
+    "email": "developers@lsq.com"
+  },
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
@@ -9,7 +14,6 @@
     "lint": "ng lint",
     "e2e": "ng e2e"
   },
-  "private": true,
   "dependencies": {
     "@angular/common": "^6.0.3",
     "@angular/core": "^6.0.3",
