@@ -610,7 +610,15 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
         }
 
         // The upload is now considered started (even though no XHR stuff has happened yet).
-        const fileUploadSubject = this._fileUploadSubjectsMap.get(fileUploadToExecute.id);
+        // TODO: Figure out why _fileUploadSubjectsMap sometimes doesn't have this entry.
+        let fileUploadSubject: BehaviorSubject<FileUploadType>;
+        if (!this._fileUploadSubjectsMap.has(fileUploadToExecute.id)) {
+            this._fileUploadSubjectsMap.set(
+                fileUploadToExecute.id,
+                new BehaviorSubject<FileUploadType>(fileUploadToExecute)
+            );
+        }
+        fileUploadSubject = this._fileUploadSubjectsMap.get(fileUploadToExecute.id);
         fileUploadToExecute.uploadHasStarted = true;
         fileUploadSubject.next(fileUploadToExecute);
 
