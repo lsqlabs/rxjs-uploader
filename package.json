@@ -12,7 +12,8 @@
     "build": "ng build rxjs-uploader --prod; ng build rxjs-uploader-demo --prod",
     "test": "ng test rxjs-uploader",
     "lint": "ng lint",
-    "e2e": "ng e2e"
+    "e2e": "ng e2e",
+    "publish": "cp README.md dist/README.md && cd dist && npm publish"
   },
   "dependencies": {
     "@angular/animations": "^6.0.3",
