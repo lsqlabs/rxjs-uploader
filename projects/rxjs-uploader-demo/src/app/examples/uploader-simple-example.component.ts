@@ -4,7 +4,7 @@ import { Uploader } from 'rxjs-uploader';
 @Component({
     selector: 'uploader-simple-example',
     template: `
-        <div><input id="file-input" type="file"></div>
+        <button (click)="uploader?.selectFiles()">Upload</button>
         <div class="mt-4">
             <div class="row">
                 <div id="files" class="col-12"></div>
@@ -28,23 +28,23 @@ import { Uploader } from 'rxjs-uploader';
     `
 })
 export class UploaderSimpleExampleComponent implements AfterViewInit {
+    public uploader: Uploader;
     // Since this all depends on DOM elements, we have to wait until the view initializes.
     public ngAfterViewInit(): void {
         // Make our DOM queries.
-        const fileInput = document.getElementById('file-input') as HTMLInputElement;
         const progressBar = document.querySelector('.progress-bar') as HTMLElement;
         const files = document.getElementById('files');
 
         // Create the uploader and bind it to a global so we can access it from our HTML.
-        const uploader = window['rxjsUploader'] = new Uploader();
+        this.uploader = window['rxjsUploader'] = new Uploader();
 
         // Buld the uploader and create the stream.
-        const fileUploads$ = uploader
+        const fileUploads$ = this.uploader
             .setRequestUrl('https://www.mocky.io/v2/5185415ba171ea3a00704eed')
             .setAllFilesUploadedCallback(
                 (fileUploads) => console.log(`Uploaded ${fileUploads.length} files!`)
             )
-            .streamFileUploads(fileInput, document);
+            .streamFileUploads();
 
         // Render information about the file uploads in the UI.
         fileUploads$.subscribe((fileUploads) => {

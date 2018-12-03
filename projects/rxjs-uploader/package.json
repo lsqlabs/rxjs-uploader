@@ -1,6 +1,6 @@
 {
   "name": "rxjs-uploader",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "license": "MIT",
   "description": "A simple RxJs-powered interface for uploading files.",
   "repository": {
@@ -22,7 +22,11 @@
     "url": "https://github.com/lsqlabs/rxjs-uploader/issues"
   },
   "homepage": "https://github.com/lsqlabs/rxjs-uploader",
+  "dependencies": {
+    "lodash": "^4.17.11"
+  },
   "peerDependencies": {
+    "core-js": "^2.5.4",
     "rxjs": "^6.0.0"
   }
 }

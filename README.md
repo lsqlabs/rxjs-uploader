@@ -7,15 +7,11 @@ Demo: https://lsqlabs.github.io/rxjs-uploader
 ## Basic example
 
 ```html
+<!-- Single file input -->
 <input id="file-source" type="file">
-```
-or
-```html
+<!-- OR multiple file input -->
 <input id="file-source" type="file" multiple>
-```
-or
-```html
-<!-- Drop zone -->
+<!-- OR drop zone -->
 <div id="file-source"></div>
 ```
 
@@ -23,6 +19,15 @@ or
 const fileUploads$ = new Uploader()
     .setRequestUrl('https://www.mocky.io/v2/5185415ba171ea3a00704eed')
     .streamFileUploads(document.getElementById('file-source'));
+
+// Alternatively, let Uploader use its default <input> (which is hidden and appended to <body>).
+// Use it by calling `uploader.selectFiles()`.
+// By default, the file input is of type 'single'. You can pass the type you want ('single' or 'multiple')
+// to the `Uploader` constructor.
+
+const fileUploads$ = new Uploader('multiple')
+    .setRequestUrl('https://www.mocky.io/v2/5185415ba171ea3a00704eed')
+    .streamFileUploads();
 ```
 
 ## Advanced example (using Angular)
@@ -82,7 +87,60 @@ export class UploaderDemoComponent implements AfterViewInit {
 
 ## A few key interfaces
 ```typescript
-interface IFileUpload {
+class Uploader<FileUploadType extends FileUpload = FileUpload> {
+    isDraggedOverStream: Observable<boolean>;
+    errorStream: Observable<UploaderError>;
+    static createFileInputElement(type?: 'single' | 'multiple', accept?: string, className?: string): HTMLInputElement;
+    constructor(config?: IUploaderConfig<FileUploadType> | 'single' | 'multiple');
+    /**
+     * Take an array of `input[type="file"]`s and an optional array of drop zone target elements and
+     * return an observable of `FileUpload`s, executing the uploads immediately (if an `allFilesQueuedCallback`
+     * does not exist) or when the `allFilesQueuedCallback` returns or resolves.
+     */
+    streamFileUploads(...fileSources: FileSource[]): Observable<FileUploadType[]>;
+    /**
+     * Pipe an empty array to the stream returned by `streamFileUploads`, unsubscribe from all open
+     * subscriptions, and set all associated file input elements' `value` property to `''`.
+     */
+    clear(): void;
+    /**
+     * Call `.click()` on the default file input element (created and appended to <body> when Uploader
+     * is instantiated). Useful when calling `streamFileUploads` with no arguments.
+     */
+    selectFiles(): void;
+    setRequestUrl(url: string): this;
+    setRequestOptions(factoryOrOptions?: IUploadRequestOptions | ((fileUpload?: FileUploadType) => Promise<IUploadRequestOptions>)): this;
+    setRequestOptionsFactory(factory: (fileUpload?: FileUploadType) => Promise<IUploadRequestOptions>): this;
+    patchRequestOptions(requestOptionsPatch?: Partial<IUploadRequestOptions>): this;
+    setAllowedContentTypes(contentTypes: string[]): this;
+    setFileCountLimit(limit: number | (() => number)): this;
+    setFileSizeLimitMb(limit: number): this;
+    setOnFileCountLimitExceeded(fn: (fileCountLimit: number) => void): this;
+    setAllFilesQueuedCallback(callback: (fileUploads: FileUploadType[]) => FileUploadCallbackReturn<FileUploadType[]>): this;
+    setFileUploadedCallback(callback: (fileUpload: FileUploadType) => FileUploadCallbackReturn<FileUploadType>): this;
+    setAllFilesUploadedCallback(callback: (fileUploads: FileUploadType[]) => FileUploadCallbackReturn<FileUploadType[]>): this;
+    setDragAndDropFlagSelector(selector: string): this;
+    setFileUploadType(fileUploadType: any): this;
+    getRequestUrl(): string;
+    getRequestOptions(): Partial<IUploadRequestOptions>;
+    getAllowedContentTypes(): string[];
+    getFileCountLimit(): number | (() => number);
+    getFileSizeLimitMb(): number;
+    getOnFileCountLimitExceeded(): (fileCountLimit: number) => void;
+    getAllFilesQueuedCallback(): (fileUploads: FileUploadType[]) => FileUploadCallbackReturn<FileUploadType[]>;
+    getFileUploadedCallback(): (fileUpload: FileUploadType) => FileUploadCallbackReturn<FileUploadType>;
+    getAllFilesUploadedCallback(): (fileUploads: FileUploadType[]) => FileUploadCallbackReturn<FileUploadType[]>;
+    getDragAndDropFlagSelector(): string;
+    getFileUploadType(): any;
+    getFileInputElements(): HTMLInputElement[];
+    getDefaultFileSource(): HTMLInputElement;
+    getInputAccept(): string;
+}
+```
+
+```typescript
+export declare class FileUpload implements IFileUpload {
+    file: File;
     progress: IProgress;
     response: Response;
     responseCode: number;
@@ -91,7 +149,7 @@ interface IFileUpload {
     uploadHasStarted: boolean;
     executeStream: Observable<boolean>;
     isMarkedForRemovalStream: Observable<boolean>;
-
+    constructor(file: File, id?: Symbol);
     readonly requestOptions: IUploadRequestOptions;
     readonly id: Symbol;
     readonly name: string;
@@ -102,19 +160,36 @@ interface IFileUpload {
     readonly failed: boolean;
     readonly rejected: boolean;
     readonly isMarkedForRemoval: boolean;
-
     reject(errorResponse?: any): void;
     setRequestOptions(options: IUploadRequestOptions): void;
     createRequest(): {
-        method: HttpMethod,
-        url: string,
-        body: FormData,
-        headers?: { [key: string]: string }
+        method: HttpMethod;
+        url: string;
+        body: FormData;
+        headers?: {
+            [key: string]: string;
+        };
     };
     reset(): void;
     retry(): void;
     markForRemoval(): void;
     remove(): void;
+}
+
+type FileUploadCallbackReturn<ReturnType> = Promise<ReturnType> | ReturnType | void;
+
+interface IUploaderConfig<FileUploadType extends FileUpload = FileUpload> {
+    allowedContentTypes?: string[];
+    fileCountLimit?: number | (() => number);
+    fileSizeLimitMb?: number;
+    dragAndDropFlagSelector?: string;
+    requestUrl?: string;
+    requestOptions?: ((fileUpload?: FileUploadType) => Promise<IUploadRequestOptions>) | IUploadRequestOptions;
+    fileUploadType?: any;
+    allFilesQueuedCallback?: (fileUploads: FileUploadType[]) => FileUploadCallbackReturn<FileUploadType[]>;
+    fileUploadedCallback?: (fileUpload: FileUploadType) => FileUploadCallbackReturn<FileUploadType>;
+    allFilesUploadedCallback?: (fileUploads: FileUploadType[]) => FileUploadCallbackReturn<FileUploadType[]>;
+    onFileCountLimitExceeded?: (fileCountLimit: number) => void;
 }
 
 interface IProgress {

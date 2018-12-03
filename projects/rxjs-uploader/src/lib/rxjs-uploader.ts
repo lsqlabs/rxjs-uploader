@@ -18,7 +18,7 @@ import { FileUpload } from './models/file-upload';
 import { IUploadRequestOptions } from './models/upload-request-options';
 import { UploaderError, FileSizeLimitExceededError } from './models/uploader-error';
 import { DisallowedContentTypeError, MissingRequestOptionsError } from './models/uploader-error';
-import { IUploaderConfig } from './models/uploader-config';
+import { IUploaderConfig, FileUploadCallbackReturn } from './models/uploader-config';
 
 /** @see https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/readyState */
 export const enum XHRReadyState {
@@ -37,6 +37,7 @@ const BYTES_PER_MB = 1000 * 1000;
 export class Uploader<FileUploadType extends FileUpload = FileUpload> {
     private _isDraggedOverSubject = new BehaviorSubject<boolean>(false);
     private _fileInputElements: HTMLInputElement[] = [];
+    private _defaultFileSource: HTMLInputElement;
     private _fileDropZoneElements: DropZoneTarget[] = [];
     private _fileUploadSubjectsMap = new Map<Symbol, BehaviorSubject<FileUploadType>>();
     private _fileUploadsStreamResetSubject = new Subject<null>();
@@ -47,11 +48,11 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
     private _fileSizeLimitMb: number;
     private _onFileCountLimitExceeded: (fileCountLimit: number) => void;
     private _requestOptions: Partial<IUploadRequestOptions>;
-    private _requestOptionsFactory: (fileUpload?: FileUploadType) => Promise<IUploadRequestOptions>;
+    private _requestOptionsFactory: (fileUpload?: FileUploadType) => Promise<IUploadRequestOptions> | IUploadRequestOptions;
     private _fileUploadType = FileUpload;
-    private _allFilesQueuedCallback: (fileUploads: FileUploadType[]) => Promise<FileUploadType[]>;
-    private _fileUploadedCallback: (fileUpload: FileUploadType) => Promise<FileUploadType>;
-    private _allFilesUploadedCallback: (fileUploads: FileUploadType[]) => Promise<FileUploadType[]> | void;
+    private _allFilesQueuedCallback: (fileUploads: FileUploadType[]) => FileUploadCallbackReturn<FileUploadType[]>;
+    private _fileUploadedCallback: (fileUpload: FileUploadType) => FileUploadCallbackReturn<FileUploadType>;
+    private _allFilesUploadedCallback: (fileUploads: FileUploadType[]) => FileUploadCallbackReturn<FileUploadType[]>;
     private _dropZoneEventListenersMap =
         new Map<DropZoneTarget, { [key: string]: (event: Event) => any }>();
     private _dragAndDropFlagSelector: string;
@@ -59,8 +60,12 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
     public isDraggedOverStream = this._isDraggedOverSubject.asObservable();
     public errorStream = this._errorSubject.asObservable();
 
-    // Public API - helper methods.
-    public static createFileInputElement(type: 'single' | 'multiple' = 'single', accept?: string, className?: string): HTMLInputElement {
+    // Helper API.
+    public static createFileInputElement(
+        type: 'single' | 'multiple' = 'single',
+        accept?: string,
+        className?: string
+    ): HTMLInputElement {
         const existingFileInputElements = document.querySelectorAll(`.${className}`);
         if (!!existingFileInputElements && !!existingFileInputElements.length) {
             Array.from(existingFileInputElements).forEach((existingFileInputElement) => {
@@ -83,59 +88,75 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
         return fileInputElement;
     }
 
-    constructor(config?: IUploaderConfig<FileUploadType>) {
+    constructor(config?: IUploaderConfig<FileUploadType> | 'single' | 'multiple') {
         this.errorStream.subscribe((error) => {
             console.error(`[RxJs Uploader] ${error}`);
         });
 
         if (config) {
-            if (typeof config.allowedContentTypes !== 'undefined') {
-                this.setAllowedContentTypes(config.allowedContentTypes);
+            if (config !== 'single' && config !== 'multiple') {
+                if (typeof config.allowedContentTypes !== 'undefined') {
+                    this.setAllowedContentTypes(config.allowedContentTypes);
+                }
+                if (typeof config.fileCountLimit !== 'undefined') {
+                    this.setFileCountLimit(config.fileCountLimit);
+                }
+                if (typeof config.fileSizeLimitMb !== 'undefined') {
+                    this.setFileSizeLimitMb(config.fileSizeLimitMb);
+                }
+                if (typeof config.onFileCountLimitExceeded !== 'undefined') {
+                    this.setOnFileCountLimitExceeded(config.onFileCountLimitExceeded);
+                }
+                if (typeof config.requestUrl !== 'undefined') {
+                    this.setRequestUrl(config.requestUrl);
+                }
+                if (typeof config.requestOptions !== 'undefined') {
+                    this.setRequestOptions(config.requestOptions);
+                }
+                if (typeof config.fileUploadType !== 'undefined') {
+                    this.setFileUploadType(config.fileUploadType);
+                }
+                if (typeof config.allFilesQueuedCallback !== 'undefined') {
+                    this.setAllFilesQueuedCallback(config.allFilesQueuedCallback);
+                }
+                if (typeof config.fileUploadedCallback !== 'undefined') {
+                    this.setFileUploadedCallback(config.fileUploadedCallback);
+                }
+                if (typeof config.allFilesUploadedCallback !== 'undefined') {
+                    this.setAllFilesUploadedCallback(config.allFilesUploadedCallback);
+                }
+                if (typeof config.dragAndDropFlagSelector !== 'undefined') {
+                    this.setDragAndDropFlagSelector(config.dragAndDropFlagSelector);
+                }
+            } else {
+                this._defaultFileSource = Uploader.createFileInputElement(config as 'single' | 'multiple');
             }
-            if (typeof config.fileCountLimit !== 'undefined') {
-                this.setFileCountLimit(config.fileCountLimit);
-            }
-            if (typeof config.fileSizeLimitMb !== 'undefined') {
-                this.setFileSizeLimitMb(config.fileSizeLimitMb);
-            }
-            if (typeof config.onFileCountLimitExceeded !== 'undefined') {
-                this.setOnFileCountLimitExceeded(config.onFileCountLimitExceeded);
-            }
-            if (typeof config.requestUrl !== 'undefined') {
-                this.setRequestUrl(config.requestUrl);
-            }
-            if (typeof config.requestOptions !== 'undefined') {
-                this.setRequestOptions(config.requestOptions);
-            }
-            if (typeof config.fileUploadType !== 'undefined') {
-                this.setFileUploadType(config.fileUploadType);
-            }
-            if (typeof config.allFilesQueuedCallback !== 'undefined') {
-                this.setAllFilesQueuedCallback(config.allFilesQueuedCallback);
-            }
-            if (typeof config.fileUploadedCallback !== 'undefined') {
-                this.setFileUploadedCallback(config.fileUploadedCallback);
-            }
-            if (typeof config.allFilesUploadedCallback !== 'undefined') {
-                this.setAllFilesUploadedCallback(config.allFilesUploadedCallback);
-            }
-            if (typeof config.dragAndDropFlagSelector !== 'undefined') {
-                this.setDragAndDropFlagSelector(config.dragAndDropFlagSelector);
-            }
+        } else {
+            this._defaultFileSource = Uploader.createFileInputElement();
         }
     }
 
-    // Public API.
+    // Uploader API.
     /**
-     * All-in-one method for uploading. Takes an array of `input[type="file"]`s and an optional array of
-     * drop zone target elements and returns an observable of `FileUpload`s, executing the uploads immediately.
+     * Take an array of `input[type="file"]`s and an optional array of drop zone target elements and
+     * return an observable of `FileUpload`s, executing the uploads immediately (if an `allFilesQueuedCallback`
+     * does not exist) or when the `allFilesQueuedCallback` returns or resolves.
      */
     public streamFileUploads(...fileSources: FileSource[]): Observable<FileUploadType[]> {
+        if (!fileSources.length && !!this._defaultFileSource) {
+            fileSources = [
+                this._defaultFileSource
+            ];
+        }
         return this._streamFileUploads(
             this._registerSources(...fileSources)
         );
     }
 
+    /**
+     * Pipe an empty array to the stream returned by `streamFileUploads`, unsubscribe from all open
+     * subscriptions, and set all associated file input elements' `value` property to `''`.
+     */
     public clear(): void {
         this._fileUploadsStreamResetSubject.next(null);
         this._fileUploadSubjectsMap.clear();
@@ -143,6 +164,14 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
         this._fileInputElements.forEach((inputElement) => {
             inputElement.value = '';
         });
+    }
+
+    /**
+     * Call `.click()` on the default file input element (created and appended to <body> when Uploader
+     * is instantiated). Useful when calling `streamFileUploads` with no arguments.
+     */
+    public selectFiles(): void {
+        this._defaultFileSource.click();
     }
 
     // Builder methods.
@@ -215,17 +244,23 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
         return this;
     }
 
-    public setAllFilesQueuedCallback(callback: (fileUploads: FileUploadType[]) => Promise<FileUploadType[]>): this {
+    public setAllFilesQueuedCallback(
+        callback: (fileUploads: FileUploadType[]) => FileUploadCallbackReturn<FileUploadType[]>
+    ): this {
         this._allFilesQueuedCallback = callback;
         return this;
     }
 
-    public setFileUploadedCallback(callback: (fileUpload: FileUploadType) => Promise<FileUploadType>): this {
+    public setFileUploadedCallback(
+        callback: (fileUpload: FileUploadType) => FileUploadCallbackReturn<FileUploadType>
+    ): this {
         this._fileUploadedCallback = callback;
         return this;
     }
 
-    public setAllFilesUploadedCallback(callback: (fileUploads: FileUploadType[]) => Promise<FileUploadType[]> | void): this {
+    public setAllFilesUploadedCallback(
+        callback: (fileUploads: FileUploadType[]) => FileUploadCallbackReturn<FileUploadType[]>
+    ): this {
         this._allFilesUploadedCallback = callback;
         return this;
     }
@@ -265,15 +300,18 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
         return this._onFileCountLimitExceeded;
     }
 
-    public getAllFilesQueuedCallback(): (fileUploads: FileUploadType[]) => Promise<FileUploadType[]> {
+    public getAllFilesQueuedCallback(): (fileUploads: FileUploadType[]) =>
+        FileUploadCallbackReturn<FileUploadType[]> {
         return this._allFilesQueuedCallback;
     }
 
-    public getFileUploadedCallback(): (fileUpload: FileUploadType) => Promise<FileUploadType> {
+    public getFileUploadedCallback(): (fileUpload: FileUploadType) =>
+        FileUploadCallbackReturn<FileUploadType> {
         return this._fileUploadedCallback;
     }
 
-    public getAllFilesUploadedCallback(): (fileUploads: FileUploadType[]) => Promise<FileUploadType[]> | void {
+    public getAllFilesUploadedCallback(): (fileUploads: FileUploadType[]) =>
+        FileUploadCallbackReturn<FileUploadType[]> {
         return this._allFilesUploadedCallback;
     }
 
@@ -285,12 +323,24 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
         return this._fileUploadType;
     }
 
+    public getFileInputElements(): HTMLInputElement[] {
+        return this._fileInputElements;
+    }
+
+    public getDefaultFileSource(): HTMLInputElement {
+        return this._defaultFileSource;
+    }
+
+    public getInputAccept(): string {
+        return this._allowedContentTypes.join(',');
+    }
+
     // Private methods.
     private _registerSources(...elements: FileSource[]): Observable<FileUploadType[]> {
         const inputElements = elements.filter((element: HTMLInputElement) =>
-            element.type && element.type === 'file');
+            element && element.type && element.type === 'file');
         const dropZoneElements = elements.filter((element: HTMLInputElement) =>
-            !element.type || element.type !== 'file');
+            element && (!element.type || element.type !== 'file'));
         const mergeArgs: Observable<FileUploadType[] | null>[] = [];
 
         if ((!inputElements || !inputElements.length) && (!dropZoneElements || !dropZoneElements.length)) {
@@ -298,14 +348,14 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
         }
         if (inputElements && typeof inputElements.forEach === 'function') {
             inputElements.forEach((inputElement: HTMLInputElement) => {
-                const inputElementStream = this._registerInput(inputElement);
-                mergeArgs.push(inputElementStream);
+                const inputFileUploadsStream = this._registerInput(inputElement);
+                mergeArgs.push(inputFileUploadsStream);
             });
         }
         if (dropZoneElements && typeof dropZoneElements.forEach === 'function') {
             dropZoneElements.forEach((element) => {
-                const dropZoneElementStream = this._registerDropZone(element);
-                mergeArgs.push(dropZoneElementStream);
+                const dropZoneFileUploadsStream = this._registerDropZone(element);
+                mergeArgs.push(dropZoneFileUploadsStream);
             });
         }
 
@@ -348,7 +398,7 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
             .pipe(map((fileUploads) => fileUploads.filter((fileUpload) => !fileUpload.isMarkedForRemoval)));
     }
 
-    private _registerDropZone(element: DropZoneTarget = document): Observable<FileUploadType[]> {
+    private _registerDropZone(element: DropZoneTarget): Observable<FileUploadType[]> {
         const fileUploadsSubject = new Subject<FileUploadType[]>();
         this._fileDropZoneElements = uniq([...this._fileDropZoneElements, element]);
         let eventListenersMap: { [key: string]: (event: Event) => any };
@@ -441,8 +491,19 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
                     // If we have a callback to invoke, return an observable of the callback mapped to
                     // the result of `_executeFileUploads`. Else, just return the result of
                     // `_executeFileUploads`.
-                    if (typeof this._allFilesQueuedCallback === 'function') {
-                        return observableFrom(this._allFilesQueuedCallback(fileUploads))
+                    if (typeof this._allFilesQueuedCallback === 'function' && fileUploads && fileUploads.length) {
+                        const allFilesQueuedCallbackResult = this._allFilesQueuedCallback(fileUploads);
+                        let _fileUploadsStream: Observable<FileUploadType[]>;
+                        if (allFilesQueuedCallbackResult) {
+                            if (typeof (allFilesQueuedCallbackResult as Promise<FileUploadType[]>).then === 'function') {
+                                _fileUploadsStream = observableFrom(allFilesQueuedCallbackResult as Promise<FileUploadType[]>);
+                            } else {
+                                _fileUploadsStream = observableOf(allFilesQueuedCallbackResult as FileUploadType[]);
+                            }
+                        } else {
+                            _fileUploadsStream = observableOf(fileUploads);
+                        }
+                        return _fileUploadsStream
                             .pipe(flatMap((_fileUploads) =>
                                 this._executeFileUploads(_fileUploads)
                             ));
@@ -478,11 +539,13 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
                 .pipe(
                     switchMap((_fileUploads) => {
                         if (_fileUploads.every((fileUpload) => fileUpload.uploaded)) {
-                            const promiseOrVoid = this._allFilesUploadedCallback(_fileUploads);
-                            if (promiseOrVoid instanceof Promise) {
-                                return observableFrom(promiseOrVoid);
-                            } else {
-                                return observableOf(_fileUploads);
+                            const allFilesUploadedCallbackResult = this._allFilesUploadedCallback(_fileUploads);
+                            if (allFilesUploadedCallbackResult) {
+                                if (typeof (allFilesUploadedCallbackResult as Promise<FileUploadType[]>).then === 'function') {
+                                    return observableFrom(allFilesUploadedCallbackResult as Promise<FileUploadType[]>);
+                                } else {
+                                    return observableOf(allFilesUploadedCallbackResult as FileUploadType[]);
+                                }
                             }
                         }
                         return observableOf(_fileUploads);
@@ -559,7 +622,20 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
                             _fileUpload.responseCode = xhr.status;
 
                             if (typeof this._fileUploadedCallback === 'function') {
-                                fileUploadSubject.next(await this._fileUploadedCallback(_fileUpload));
+                                const fileUploadedCallbackResult = this._fileUploadedCallback(_fileUpload);
+                                if (fileUploadedCallbackResult) {
+                                    if (typeof (fileUploadedCallbackResult as Promise<FileUploadType>).then
+                                        === 'function') {
+                                            (fileUploadedCallbackResult as Promise<FileUploadType>)
+                                                .then((fileUploadFromCallback) => {
+                                                    fileUploadSubject.next(fileUploadFromCallback);
+                                                });
+                                    } else {
+                                        fileUploadSubject.next(fileUploadedCallbackResult as FileUploadType);
+                                    }
+                                } else {
+                                    fileUploadSubject.next(_fileUpload);
+                                }
                             } else {
                                 fileUploadSubject.next(_fileUpload);
                             }
@@ -625,7 +701,19 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
         // Construct a request and send it.
         if (typeof this._requestOptionsFactory === 'function') {
             const existingRequestOptions: Partial<IUploadRequestOptions> = this._requestOptions || {};
-            this._requestOptionsFactory(fileUploadToExecute)
+            const requestOptionsFactoryReturnValue = this._requestOptionsFactory(fileUploadToExecute);
+            let requestOptionsPromise: Promise<IUploadRequestOptions>;
+            if (
+                !requestOptionsFactoryReturnValue
+                || typeof (requestOptionsFactoryReturnValue as Promise<IUploadRequestOptions>).then
+                    !== 'function'
+            ) {
+                requestOptionsPromise = Promise.resolve(requestOptionsFactoryReturnValue);
+            } else {
+                requestOptionsPromise = requestOptionsFactoryReturnValue as Promise<IUploadRequestOptions>;
+            }
+
+            requestOptionsPromise
                 .then((requestOptions) => {
                     if (requestOptions) {
                         fileUploadToExecute.setRequestOptions({
@@ -645,11 +733,6 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
         }
 
         return fileUploadSubject.asObservable();
-    }
-
-    // Accessors.
-    public getInputAccept(): string {
-        return this._allowedContentTypes.join(',');
     }
 
     // Event handlers.
@@ -779,7 +862,9 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
                     fileUpload.markForRemoval();
                 });
 
-                this._onFileCountLimitExceeded(this._getFileCountLimit());
+                if (typeof this._onFileCountLimitExceeded === 'function') {
+                    this._onFileCountLimitExceeded(this._getFileCountLimit());
+                }
                 return previousAccFileUploads;
             }
 
