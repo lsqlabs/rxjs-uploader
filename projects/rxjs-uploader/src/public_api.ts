@@ -1,6 +1,4 @@
-/*
- * Public API Surface of rxjs-uploader
- */
+import './polyfills';
 
 export * from './lib/rxjs-uploader';
 export * from './lib/models/file-upload';

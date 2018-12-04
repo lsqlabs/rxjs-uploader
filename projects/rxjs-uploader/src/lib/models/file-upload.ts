@@ -42,7 +42,18 @@ export interface IFileUpload {
 }
 
 export class FileUpload implements IFileUpload {
+    // Private variables.
     private _id: Symbol;
+    private _rejected?: boolean;
+    private _requestOptions: IUploadRequestOptions = {
+        url: null as string,
+        method: HttpMethod.Post,
+        formData: null
+    };
+    private _executeSubject = new BehaviorSubject<boolean>(true);
+    private _isMarkedForRemovalSubject = new BehaviorSubject<boolean>(false);
+
+    // Public API.
     public progress: IProgress = {
         percent: 0,
         state: ProgressState.NotStarted
@@ -51,19 +62,8 @@ export class FileUpload implements IFileUpload {
     public responseCode: number;
     public responseBody: any;
     public url?: string;
-    public pages?: number;
     public uploadHasStarted = false;
-    private _rejected?: boolean;
-    private _requestOptions: IUploadRequestOptions = {
-        url: null as string,
-        method: HttpMethod.Post,
-        formData: null
-    };
-
-    // Reactive stuff.
-    private _executeSubject = new BehaviorSubject<boolean>(true);
     public executeStream: Observable<boolean> = this._executeSubject.asObservable();
-    private _isMarkedForRemovalSubject = new BehaviorSubject<boolean>(false);
     public isMarkedForRemovalStream: Observable<boolean> = this._isMarkedForRemovalSubject.asObservable();
 
     constructor(public file: File, id?: Symbol) {

@@ -15,7 +15,7 @@ describe('RxJs Uploader', () => {
         expect(multiFileInput.multiple).toBeTruthy();
     });
 
-    it('should execute a basic example', (done) => {
+    it('should execute a basic example with an external file input', (done) => {
         const dataTransfer = new DataTransfer();
         dataTransfer.items.add(new File(['1', '2', '3'], 'test-upload.txt'));
         singleFileInput.files = dataTransfer.files;
@@ -32,6 +32,27 @@ describe('RxJs Uploader', () => {
             });
 
         singleFileInput.dispatchEvent(new Event('change'));
+    });
+
+    it('should execute a basic example with the default file input', (done) => {
+        const uploader = new Uploader('multiple');
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(new File(['1', '2', '3'], 'test-upload.txt'));
+        dataTransfer.items.add(new File(['4', '5', '6'], 'test-upload-2.txt', { type: 'text/plain' }));
+        uploader.getDefaultFileSource().files = dataTransfer.files;
+
+        uploader
+            .setRequestUrl('https://www.mocky.io/v2/5185415ba171ea3a00704eed')
+            .streamFileUploads()
+            .pipe(debounceTime(0)) // Convenient way to ignore the initial 'change' event
+                                   // during which input.files is empty.
+            .subscribe((fileUploads) => {
+                expect(fileUploads.length).toBe(2);
+                expect(fileUploads[1].name).toBe('test-upload-2.txt');
+                done();
+            });
+
+        uploader.getDefaultFileSource().dispatchEvent(new Event('change'));
     });
 
     it('should execute an advanced example', (done) => {
