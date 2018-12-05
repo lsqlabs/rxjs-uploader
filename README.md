@@ -87,26 +87,13 @@ export class UploaderDemoComponent implements AfterViewInit {
 
 ## A few key interfaces
 ```typescript
-class Uploader<FileUploadType extends FileUpload = FileUpload> {
+class Uploader<FileUploadType extends FileUpload> {
     isDraggedOverStream: Observable<boolean>;
     errorStream: Observable<UploaderError>;
     static createFileInputElement(type?: 'single' | 'multiple', accept?: string, className?: string): HTMLInputElement;
     constructor(config?: IUploaderConfig<FileUploadType> | 'single' | 'multiple');
-    /**
-     * Take an array of `input[type="file"]`s and an optional array of drop zone target elements and
-     * return an observable of `FileUpload`s, executing the uploads immediately (if an `allFilesQueuedCallback`
-     * does not exist) or when the `allFilesQueuedCallback` returns or resolves.
-     */
     streamFileUploads(...fileSources: FileSource[]): Observable<FileUploadType[]>;
-    /**
-     * Pipe an empty array to the stream returned by `streamFileUploads`, unsubscribe from all open
-     * subscriptions, and set all associated file input elements' `value` property to `''`.
-     */
     clear(): void;
-    /**
-     * Call `.click()` on the default file input element (created and appended to <body> when Uploader
-     * is instantiated). Useful when calling `streamFileUploads` with no arguments.
-     */
     selectFiles(): void;
     setRequestUrl(url: string): this;
     setRequestOptions(factoryOrOptions?: IUploadRequestOptions | ((fileUpload?: FileUploadType) => Promise<IUploadRequestOptions>)): this;
@@ -139,7 +126,7 @@ class Uploader<FileUploadType extends FileUpload = FileUpload> {
 ```
 
 ```typescript
-export declare class FileUpload implements IFileUpload {
+class FileUpload {
     file: File;
     progress: IProgress;
     response: Response;
