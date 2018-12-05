@@ -23,7 +23,7 @@
   },
   "homepage": "https://github.com/lsqlabs/rxjs-uploader",
   "dependencies": {
-    "lodash": "^4.17.11"
+    "lodash": "4.17.11"
   },
   "peerDependencies": {
     "core-js": "^2.5.4",
