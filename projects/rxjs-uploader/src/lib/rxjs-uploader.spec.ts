@@ -3,7 +3,8 @@ import { debounceTime } from 'rxjs/operators';
 
 describe('RxJs Uploader', () => {
     const singleFileInput = Uploader.createFileInputElement();
-    const multiFileInput = Uploader.createFileInputElement('multiple');
+    const multiFileInput1 = Uploader.createFileInputElement('multiple');
+    const multiFileInput2 = Uploader.createFileInputElement('multiple');
 
     it('should create a file input (single)', () => {
         expect(singleFileInput).toBeTruthy();
@@ -11,8 +12,8 @@ describe('RxJs Uploader', () => {
     });
 
     it('should create a file input (multiple)', () => {
-        expect(multiFileInput).toBeTruthy();
-        expect(multiFileInput.multiple).toBeTruthy();
+        expect(multiFileInput1).toBeTruthy();
+        expect(multiFileInput1.multiple).toBeTruthy();
     });
 
     it('should execute a basic example with an external file input', (done) => {
@@ -56,11 +57,32 @@ describe('RxJs Uploader', () => {
     });
 
     it('should execute an advanced example', (done) => {
-        const dataTransfer = new DataTransfer();
-        dataTransfer.items.add(new File(['1', '2', '3'], 'test-upload-1.txt', { type: 'text/plain' }));
-        dataTransfer.items.add(new File(['4', '5', '6'], 'test-upload-2.txt', { type: 'text/plain' }));
-        dataTransfer.items.add(new File(['7', '8', '9'], 'test-upload-3'));
-        multiFileInput.files = dataTransfer.files;
+        const dataTransfer1 = new DataTransfer();
+        const dataTransfer2 = new DataTransfer();
+        let allFilesQueuedCbCalledTimes = 0;
+        const allFilesQueuedCb = async (fileUploads) => {
+            allFilesQueuedCbCalledTimes++;
+            if (allFilesQueuedCbCalledTimes === 1) {
+                expect(fileUploads.length).toBe(3);
+            } else {
+                expect(fileUploads.length).toBe(4);
+            }
+            expect(fileUploads[0].name).toBe('test-upload-1.txt');
+            expect(fileUploads[1].name).toBe('test-upload-2.txt');
+            expect(fileUploads.every((fileUpload) => fileUpload.uploadHasStarted === false)).toBe(true);
+            expect(allFilesQueuedCbSpy).toHaveBeenCalledTimes(allFilesQueuedCbCalledTimes);
+            done();
+            return fileUploads;
+        };
+        const allFilesQueuedCbSpy = jasmine.createSpy('allFilesQueuedCb', allFilesQueuedCb).and.callThrough();
+        dataTransfer1.items.add(new File(['1', '2', '3'], 'test-upload-1.txt', { type: 'text/plain' }));
+        dataTransfer1.items.add(new File(['4', '5', '6'], 'test-upload-2.txt', { type: 'text/plain' }));
+        dataTransfer1.items.add(new File(['7', '8', '9'], 'test-upload-3.txt', { type: 'text/plain' }));
+        dataTransfer1.items.add(new File(['10', '11', '12'], 'test-upload-4'));
+        multiFileInput1.files = dataTransfer1.files;
+
+        dataTransfer2.items.add(new File(['1', '2', '3'], 'test-upload-5.txt', { type: 'text/plain' }));
+        multiFileInput2.files = dataTransfer2.files;
 
         const uploader = new Uploader()
             .setRequestOptions({
@@ -80,32 +102,18 @@ describe('RxJs Uploader', () => {
             .setOnFileCountLimitExceeded((fileCountLimit) => alert(
                 'You attempted to upload more than the limit of ' + fileCountLimit + ' files'
             ))
-            .setAllFilesQueuedCallback((fileUploads) => {
-                // It's possible you'll want to do some async stuff before actually executing the upload.
-                // You can also manipulate any of the `fileUpload`s before executing them.
-                return new Promise((resolve, reject) => {
-                    // Simulating an HTTP call.
-                    setTimeout(() => {
-                        resolve(fileUploads);
-                    }, 1000);
-                });
-            })
+            .setAllFilesQueuedCallback(allFilesQueuedCbSpy)
             .setFileUploadedCallback(async (fileUpload) => {
                 console.log(fileUpload.name + ' was uploaded');
                 return fileUpload;
             })
             .setAllFilesUploadedCallback((fileUploads) => console.log(fileUploads.length + ' files were uploaded'));
 
-        uploader.streamFileUploads(multiFileInput)
+        uploader.streamFileUploads(multiFileInput1, multiFileInput2)
             .pipe(debounceTime(0))
-            .subscribe((fileUploads) => {
-                expect(fileUploads.length).toBe(2);
-                expect(fileUploads[0].name).toBe('test-upload-1.txt');
-                expect(fileUploads[1].name).toBe('test-upload-2.txt');
-                expect(fileUploads.every((fileUpload) => fileUpload.uploadHasStarted === true));
-                done();
-            });
+            .subscribe();
 
-        multiFileInput.dispatchEvent(new Event('change'));
+        multiFileInput1.dispatchEvent(new Event('change'));
+        multiFileInput2.dispatchEvent(new Event('change'));
     });
 });
