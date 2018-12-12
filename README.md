@@ -4,7 +4,21 @@ A simple RxJs-powered interface for uploading files.
 
 Demo: https://lsqlabs.github.io/rxjs-uploader
 
-## Basic example
+## Installation & Basic usage
+`npm install rxjs-uploader`
+
+```ts
+import { Uploader } from 'rxjs-uploader';
+
+const uploader = new Uploader();
+
+uploader.setRequestUrl('https://www.mocky.io/v2/5185415ba171ea3a00704eed')
+    .streamFileUploads()
+
+uploader.selectFiles();
+```
+
+## Simple example
 
 ```html
 <!-- Single file input -->
@@ -44,10 +58,13 @@ export class UploaderDemoComponent implements AfterViewInit {
     public fileUploads$: Observable<FileUpload[]>;
     public hiddenFileInput = Uploader.createFileInputElement('multiple');
     public uploader = new Uploader()
-        .setRequestOptions({
-            url: 'https://api.myawesomeservice.com/upload'
-        })
-        .setRequestOptionsFactory(async (fileUpload) => {
+        .setAllowedContentTypes([ 'image/jpeg', 'image/png', 'application/pdf' ])
+        .setFileCountLimit(100)
+        .setFileSizeLimitMb(10)
+        .setOnFileCountLimitExceeded((fileCountLimit) => alert(
+            'You attempted to upload more than the limit of ' + fileCountLimit + ' files'
+        ))
+        .setRequestOptionsFactory((fileUpload) => {
             return {
                 url: 'https://api.myawesomeservice.com/upload/' + fileUpload.name,
                 headers: {
@@ -55,12 +72,6 @@ export class UploaderDemoComponent implements AfterViewInit {
                 }
             };
         })
-        .setAllowedContentTypes([ 'image/jpeg', 'image/png', 'application/pdf' ])
-        .setFileCountLimit(100)
-        .setFileSizeLimitMb(10)
-        .setOnFileCountLimitExceeded((fileCountLimit) => alert(
-            'You attempted to upload more than the limit of ' + fileCountLimit + ' files'
-        ))
         .setAllFilesQueuedCallback((fileUploads) => {
             // It's possible you'll want to do some async stuff before actually executing the upload.
             // You can also manipulate any of the `fileUpload`s before executing them.
@@ -72,7 +83,7 @@ export class UploaderDemoComponent implements AfterViewInit {
                 }, 1000);
             });
         })
-        .setFileUploadedCallback(async (fileUpload) => {
+        .setFileUploadedCallback((fileUpload) => {
             console.log(fileUpload.name + ' was uploaded');
             return fileUpload;
         })
@@ -87,9 +98,13 @@ export class UploaderDemoComponent implements AfterViewInit {
 
 ## A few key interfaces
 ```typescript
-class Uploader<FileUploadType extends FileUpload = FileUpload> {
+class Uploader<FileUploadType extends FileUpload> {
     isDraggedOverStream: Observable<boolean>;
     errorStream: Observable<UploaderError>;
+    /**
+     * Return an `HTMLInputElement` with the specified `accept`, and `className` attributes.
+     * If called with no arguments, creates a single-file `input`.
+     */
     static createFileInputElement(type?: 'single' | 'multiple', accept?: string, className?: string): HTMLInputElement;
     constructor(config?: IUploaderConfig<FileUploadType> | 'single' | 'multiple');
     /**
@@ -139,40 +154,64 @@ class Uploader<FileUploadType extends FileUpload = FileUpload> {
 ```
 
 ```typescript
-export declare class FileUpload implements IFileUpload {
-    file: File;
+interface IFileUpload {
+    /** The state and percentage of the file's upload progress. */
     progress: IProgress;
+    /** The response, if any, returned from the HTTP upload call. */
     response: Response;
+    /** The code from the HTTP response, if any (e.g. `200`). */
     responseCode: number;
+    /** The HTTP response body, if any. */
     responseBody: any;
-    url?: string;
+    /** Set to `true` the first time the file upload is executed. */
     uploadHasStarted: boolean;
-    executeStream: Observable<boolean>;
+    /** Receives a value every time the FileUpload is supposed to execute its HTTP upload. */
+    executeStream: Observable<void>;
+    /**
+     * Receives `false` when `markForRemoval()` is called, telling `Uploader` to delete it
+     * from memory and cancel the upload if one is pending.
+     */
     isMarkedForRemovalStream: Observable<boolean>;
-    constructor(file: File, id?: Symbol);
+
+    /** Returns the value passed to `setRequestOptions()`. */
     readonly requestOptions: IUploadRequestOptions;
+    /** A unique identifier for the `FileUpload`. */
     readonly id: Symbol;
+    /** The `name` taken from `file.name`. */
     readonly name: string;
+    /** Percentage of the upload that has been completed. */
     readonly progressPercentage: number;
+    /** Boolean indicating whether an upload is in progress. */
     readonly uploading: boolean;
+    /** Boolean indicating whether the upload has completed, either successfully or not. */
     readonly uploaded: boolean;
+    /** Boolean indicating whether the upload has succeeded. */
     readonly succeeded: boolean;
+    /** Boolean indicating whether the upload has failed. */
     readonly failed: boolean;
+    /** Boolean indicating whether the upload has been marked as a failure by `Uploader`. */
     readonly rejected: boolean;
+    /** Boolean indicating whether the `FileUpload` has been marked for deletion by `Uploader`. */
     readonly isMarkedForRemoval: boolean;
+
+    /** Used by `Uploader` to mark a `FileUpload` as failed. */
     reject(errorResponse?: any): void;
+    /** Set the `IUploadRequestOptions`, used to construct the HTTP request. */
     setRequestOptions(options: IUploadRequestOptions): void;
+    /** Used by `Uploader` to construct the HTTP request. */
     createRequest(): {
-        method: HttpMethod;
-        url: string;
-        body: FormData;
-        headers?: {
-            [key: string]: string;
-        };
+        method: HttpMethod,
+        url: string,
+        body: FormData,
+        headers?: { [key: string]: string }
     };
+    /** Resets the state of the `FileUpload`. */
     reset(): void;
+    /** Executes the file upload. */
     retry(): void;
+    /** Used by `Uploader` to mark the `FileUpload` for deletion. */
     markForRemoval(): void;
+    /** Alias for {@link IFileUpload#markForRemoval}` */
     remove(): void;
 }
 

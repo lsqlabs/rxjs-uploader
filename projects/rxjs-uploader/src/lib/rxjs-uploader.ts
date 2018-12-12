@@ -61,6 +61,10 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
     public errorStream = this._errorSubject.asObservable();
 
     // Helper API.
+    /**
+     * Return an `HTMLInputElement` with the specified `accept`, and `className` attributes.
+     * If called with no arguments, creates a single-file `input`.
+     */
     public static createFileInputElement(
         type: 'single' | 'multiple' = 'single',
         accept?: string,
@@ -557,8 +561,15 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
     }
 
     private _uploadFile(fileUpload: FileUploadType): Observable<FileUploadType> {
-        const fileUploadSubject = this._fileUploadSubjectsMap.get(fileUpload.id);
+        let fileUploadSubject = this._fileUploadSubjectsMap.get(fileUpload.id);
         const request = fileUpload.createRequest();
+
+        // TODO: Figure out why _fileUploadSubjectsMap sometimes doesn't have this entry.
+        if (!fileUploadSubject) {
+            fileUploadSubject = new BehaviorSubject(fileUpload);
+            this._fileUploadSubjectsMap.set(fileUpload.id, fileUploadSubject);
+        }
+
         const handleError = (errorResponse: any): void => {
             const _fileUpload = fileUploadSubject.getValue();
             _fileUpload.progress = {
@@ -576,7 +587,7 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
         };
 
         this._subscribeTemporarily(
-            fileUpload.executeStream.pipe(filter((shouldExecute) => shouldExecute)),
+            fileUpload.executeStream,
             () => {
                 const xhr = new XMLHttpRequest();
                 const progressStream = fromEvent(xhr.upload, 'progress');
