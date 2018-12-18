@@ -491,12 +491,19 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
         )
             .pipe(
                 this._concatFileUploadArrays(),
-                flatMap((fileUploads) => {
+                switchMap((fileUploads) => {
                     // If we have a callback to invoke, return an observable of the callback mapped to
                     // the result of `_executeFileUploads`. Else, just return the result of
                     // `_executeFileUploads`.
-                    if (typeof this._allFilesQueuedCallback === 'function' && fileUploads && fileUploads.length) {
-                        const allFilesQueuedCallbackResult = this._allFilesQueuedCallback(fileUploads);
+                    if (
+                        typeof this._allFilesQueuedCallback === 'function'
+                        && fileUploads
+                        && fileUploads.length
+                        && fileUploads.some((fileUpload) => !fileUpload.uploadHasStarted)
+                    ) {
+                        const allFilesQueuedCallbackResult = this._allFilesQueuedCallback(
+                            fileUploads.filter((fileUpload) => !fileUpload.uploadHasStarted)
+                        );
                         let _fileUploadsStream: Observable<FileUploadType[]>;
                         if (allFilesQueuedCallbackResult) {
                             if (typeof (allFilesQueuedCallbackResult as Promise<FileUploadType[]>).then === 'function') {
@@ -508,7 +515,7 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
                             _fileUploadsStream = observableOf(fileUploads);
                         }
                         return _fileUploadsStream
-                            .pipe(flatMap((_fileUploads) =>
+                            .pipe(switchMap((_fileUploads) =>
                                 this._executeFileUploads(_fileUploads)
                             ));
                     } else {
@@ -841,10 +848,7 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
         //   - If the new accumulated array exceeds the file count limit, invoke the callback
         //     (and make sure it's only invoked once per attempt).
         return scan<FileUploadType[]>((_previousAccFileUploads, _currentFileUploads) => {
-            if (
-                _currentFileUploads === null
-                || (this._isSingleFileInput() && !_currentFileUploads.length)
-            ) {
+            if (!_currentFileUploads || !_currentFileUploads.length) {
                 return [];
             } else {
                 _currentFileUploads.forEach((fileUpload) => {

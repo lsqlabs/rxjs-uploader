@@ -52,6 +52,8 @@ export class UploaderAdvancedExampleComponent implements AfterViewInit {
     constructor(private uploaderFactory: UploaderFactory) {
         this.uploader = this.uploaderFactory.createUploader({
             allowedContentTypes: [ 'image/png', 'image/jpg', 'image/jpeg', 'image/gif' ],
+            allFilesQueuedCallback: (fileUploads) =>
+                console.log('Files are ready to be uploaded:', fileUploads),
             requestOptions: async (fileUpload: FileUpload) => {
                 const formData = new FormData();
                 formData.append('filename', fileUpload.name);
