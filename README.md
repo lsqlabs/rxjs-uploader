@@ -10,11 +10,21 @@ Demo: https://lsqlabs.github.io/rxjs-uploader
 ```ts
 import { Uploader } from 'rxjs-uploader';
 
-const uploader = new Uploader();
+const uploader = new Uploader({
+    // You may pass configuration options to the Uploader constructor.
+    allowedContentTypes: [ 'application/pdf' ]
+});
 
-uploader.setRequestUrl('https://www.mocky.io/v2/5185415ba171ea3a00704eed')
-    .streamFileUploads()
+// Or you can set them using setter methods.
+uploader.setRequestUrl('https://www.mocky.io/v2/5185415ba171ea3a00704eed');
 
+// Once configured, call `streamFileUploads` to ready the uploader.
+// The method returns the stream of `FileUpload`s.
+const fileUploads$ = uploader.streamFileUploads();
+
+// Calling `streamFileUploads` without arguments tells Uploader to use the
+// default file source, a hidden <input type="file"> appended to <body> when
+// `Uploader` instantiates. `selectFiles` fires a `click` event on that input.
 uploader.selectFiles();
 ```
 
@@ -37,11 +47,11 @@ const fileUploads$ = new Uploader()
 // Alternatively, let Uploader use its default <input> (which is hidden and appended to <body>).
 // Use it by calling `uploader.selectFiles()`.
 // By default, the file input is of type 'single'. You can pass the type you want ('single' or 'multiple')
-// to the `Uploader` constructor.
+// to streamFileUploads.
 
-const fileUploads$ = new Uploader('multiple')
+const fileUploads$ = new Uploader()
     .setRequestUrl('https://www.mocky.io/v2/5185415ba171ea3a00704eed')
-    .streamFileUploads();
+    .streamFileUploads('multiple');
 ```
 
 ## Advanced example (using Angular)
@@ -99,7 +109,13 @@ export class UploaderDemoComponent implements AfterViewInit {
 ## A few key interfaces
 ```typescript
 class Uploader<FileUploadType extends FileUpload> {
+    /**
+     * A stream indicating whether the user is currently dragging files over any registered drop zone.
+     */
     isDraggedOverStream: Observable<boolean>;
+    /**
+     * A stream of any errors that occur during upload.
+     */
     errorStream: Observable<UploaderError>;
     /**
      * Return an `HTMLInputElement` with the specified `accept`, and `className` attributes.
@@ -108,8 +124,8 @@ class Uploader<FileUploadType extends FileUpload> {
     static createFileInputElement(type?: 'single' | 'multiple', accept?: string, className?: string): HTMLInputElement;
     constructor(config?: IUploaderConfig<FileUploadType> | 'single' | 'multiple');
     /**
-     * Take an array of `input[type="file"]`s and an optional array of drop zone target elements and
-     * return an observable of `FileUpload`s, executing the uploads immediately (if an `allFilesQueuedCallback`
+     * Take one or more `FileSource`s (`input[type="file"]`s or drop zone target elements) and return
+     * an observable of `FileUpload`s, executing the uploads immediately (if an `allFilesQueuedCallback`
      * does not exist) or when the `allFilesQueuedCallback` returns or resolves.
      */
     streamFileUploads(...fileSources: FileSource[]): Observable<FileUploadType[]>;

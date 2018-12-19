@@ -57,7 +57,14 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
         new Map<DropZoneTarget, { [key: string]: (event: Event) => any }>();
     private _dragAndDropFlagSelector: string;
     private _subscriptions: Subscription[] = [];
+
+    /**
+     * A stream indicating whether the user is currently dragging files over any registered drop zone.
+     */
     public isDraggedOverStream = this._isDraggedOverSubject.asObservable();
+    /**
+     * A stream of any errors that occur during upload.
+     */
     public errorStream = this._errorSubject.asObservable();
 
     // Helper API.
@@ -92,7 +99,15 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
         return fileInputElement;
     }
 
-    constructor(config?: IUploaderConfig<FileUploadType> | 'single' | 'multiple') {
+    constructor(
+        /**
+         * The `Uploader` constructor takes an optional config object.
+         * Note: Passing a string to `config` is @deprecated as of v1.3 and will be removed
+         * in a future version.
+         */
+        config?: IUploaderConfig<FileUploadType> | 'single' | 'multiple'
+    ) {
+        this._defaultFileSource = Uploader.createFileInputElement();
         this.errorStream.subscribe((error) => {
             console.error(`[RxJs Uploader] ${error}`);
         });
@@ -133,27 +148,39 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
                     this.setDragAndDropFlagSelector(config.dragAndDropFlagSelector);
                 }
             } else {
-                this._defaultFileSource = Uploader.createFileInputElement(config as 'single' | 'multiple');
+                // TODO(dmayerdesign): Remove in v1.4.
+                if (config === 'multiple') {
+                    this._defaultFileSource.setAttribute('multiple', 'multiple');
+                }
             }
-        } else {
-            this._defaultFileSource = Uploader.createFileInputElement();
         }
     }
 
     // Uploader API.
     /**
-     * Take an array of `input[type="file"]`s and an optional array of drop zone target elements and
-     * return an observable of `FileUpload`s, executing the uploads immediately (if an `allFilesQueuedCallback`
+     * Take one or more `FileSource`s (`input[type="file"]`s or drop zone target elements), or
+     * one of `'single'` or `'multiple'` if you intend to use `Uploader`'s default file input.
+     * @returns an observable of `FileUpload`s, executing the uploads immediately (if an `allFilesQueuedCallback`
      * does not exist) or when the `allFilesQueuedCallback` returns or resolves.
      */
-    public streamFileUploads(...fileSources: FileSource[]): Observable<FileUploadType[]> {
-        if (!fileSources.length && !!this._defaultFileSource) {
-            fileSources = [
-                this._defaultFileSource
-            ];
+    public streamFileUploads(
+        ...fileSources: (FileSource | 'single' | 'multiple')[]
+    ): Observable<FileUploadType[]> {
+        let _fileSources = fileSources as FileSource[];
+
+        if (!fileSources.length) {
+            _fileSources = [ this._defaultFileSource ];
+        } else if (fileSources[0] === 'single' || fileSources[0] === 'multiple') {
+            if (fileSources[0] === 'single' && this._defaultFileSource.getAttribute('multiple')) {
+                this._defaultFileSource.removeAttribute('multiple');
+            } else if (fileSources[0] === 'multiple' && !this._defaultFileSource.getAttribute('multiple')) {
+                this._defaultFileSource.setAttribute('multiple', 'multiple');
+            }
+            _fileSources = [ this._defaultFileSource ];
         }
+
         return this._streamFileUploads(
-            this._registerSources(...fileSources)
+            this._registerSources(..._fileSources)
         );
     }
 
