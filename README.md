@@ -4,8 +4,11 @@ A simple RxJs-powered interface for uploading files.
 
 Demo: https://lsqlabs.github.io/rxjs-uploader
 
-## Installation & Basic usage
+## Installation
+
 `npm install rxjs-uploader`
+
+## Basic Usage
 
 ```ts
 import { Uploader } from 'rxjs-uploader';
