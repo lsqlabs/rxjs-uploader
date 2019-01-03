@@ -649,21 +649,29 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
                             && _fileUpload.progress.state !== ProgressState.Completed
                         ) {
                             // The upload is complete.
-                            let response: any;
+                            let responseBody: any;
+                            let responseStatus: number;
                             try {
-                                response = JSON.parse(xhr.response);
+                                responseBody = JSON.parse(xhr.response);
                             } catch (_error) {
-                                response = xhr.response;
+                                responseBody = xhr.response;
                             }
                             _fileUpload.progress = {
                                 percent: 100,
                                 state: ProgressState.Completed
                             };
-                            _fileUpload.response = new Response(response, {
-                                status: xhr.status,
+
+                            if (xhr.status && xhr.status > 200 && xhr.status < 599) {
+                                responseStatus = xhr.status;
+                            } else {
+                                responseStatus = 500;
+                            }
+
+                            _fileUpload.response = new Response(responseBody, {
+                                status: responseStatus,
                                 statusText: xhr.statusText
                             });
-                            _fileUpload.responseBody = response;
+                            _fileUpload.responseBody = responseBody;
                             _fileUpload.responseCode = xhr.status;
 
                             if (typeof this._fileUploadedCallback === 'function') {
