@@ -661,7 +661,7 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
                                 state: ProgressState.Completed
                             };
 
-                            if (xhr.status && xhr.status > 200 && xhr.status < 599) {
+                            if (xhr.status && xhr.status >= 200 && xhr.status <= 599) {
                                 responseStatus = xhr.status;
                             } else {
                                 responseStatus = 500;
