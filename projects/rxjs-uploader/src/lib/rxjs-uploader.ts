@@ -423,7 +423,11 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
             );
             // Setting `value` to '' makes it so 'change' fires even if they select the
             // same file again.
-            inputElement.value = '';
+            // This setTimeout fixes a bug in IE11 in which immediately setting `value` to
+            // '' prevents the file upload from executing.
+            setTimeout(() => {
+                inputElement.value = '';
+            });
         });
         return fileUploadsSubject.asObservable()
             .pipe(map((fileUploads) => fileUploads.filter((fileUpload) => !fileUpload.isMarkedForRemoval)));
@@ -860,7 +864,7 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
     }
 
     private _mergeIsMarkedForRemovalStreams(): OperatorFunction<FileUploadType[], FileUploadType[]> {
-        return flatMap<FileUploadType[], FileUploadType[]>((fileUploads) => merge(
+        return flatMap<FileUploadType[], Observable<FileUploadType[]>>((fileUploads) => merge(
             ...fileUploads.map((fileUpload) =>
                 fileUpload.isMarkedForRemovalStream.pipe(
                     filter((isMarkedForRemoval) => isMarkedForRemoval),

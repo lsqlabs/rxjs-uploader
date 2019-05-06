@@ -27,6 +27,6 @@
   },
   "peerDependencies": {
     "core-js": "^2.5.4",
-    "rxjs": "^6.0.0"
+    "rxjs": "^6.5.1"
   }
 }
