@@ -1,8 +1,9 @@
-# RxJs Uploader
+# RxJS Uploader
 
-A simple RxJs-powered interface for uploading files.
+A simple [RxJS](https://github.com/ReactiveX/rxjs)-powered interface for uploading files.
 
 Demo: https://lsqlabs.github.io/rxjs-uploader
+
 Stackblitz: https://stackblitz.com/edit/rxjs-uploader-example
 
 ## Installation
@@ -14,8 +15,8 @@ Stackblitz: https://stackblitz.com/edit/rxjs-uploader-example
 ```ts
 import { Uploader } from 'rxjs-uploader';
 
+// You may pass configuration options to the Uploader constructor.
 const uploader = new Uploader({
-    // You may pass configuration options to the Uploader constructor.
     allowedContentTypes: [ 'application/pdf' ]
 });
 
@@ -133,7 +134,7 @@ export class UploaderDemoComponent implements AfterViewInit {
 }
 ```
 
-## A few key interfaces
+## API
 ```typescript
 class Uploader<FileUploadType extends FileUpload> {
     /**

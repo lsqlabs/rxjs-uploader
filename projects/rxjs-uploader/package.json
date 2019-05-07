@@ -1,6 +1,6 @@
 {
   "name": "rxjs-uploader",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "license": "MIT",
   "description": "A simple RxJs-powered interface for uploading files.",
   "repository": {
@@ -27,6 +27,6 @@
   },
   "peerDependencies": {
     "core-js": "^2.5.4",
-    "rxjs": "^6.0.0"
+    "rxjs": "^6.5.1"
   }
 }
