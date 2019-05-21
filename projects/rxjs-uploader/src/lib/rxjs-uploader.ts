@@ -414,6 +414,8 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
             });
         }
 
+        // Note: If the user tries to upload the same file more than once in a row using
+        // the same input, the input will only emit 'change' on the first attempt.
         fromEvent(inputElement, 'change').subscribe(async () => {
             if (this._isSingleFileInput()) {
                 fileUploadsSubject.next([]);
@@ -421,13 +423,6 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
             fileUploadsSubject.next(
                 await this._handleFilesAdded(inputElement)
             );
-            // Setting `value` to '' makes it so 'change' fires even if they select the
-            // same file again.
-            // This setTimeout fixes a bug in IE11 in which immediately setting `value` to
-            // '' prevents the file upload from executing.
-            setTimeout(() => {
-                inputElement.value = '';
-            });
         });
         return fileUploadsSubject.asObservable()
             .pipe(map((fileUploads) => fileUploads.filter((fileUpload) => !fileUpload.isMarkedForRemoval)));
