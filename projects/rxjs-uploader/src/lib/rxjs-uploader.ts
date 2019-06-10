@@ -12,6 +12,7 @@ import {
     Subscription,
     OperatorFunction
 } from 'rxjs';
+import { lookup } from 'mime-types';
 import { delay, filter, flatMap, map, scan, switchMap, take, takeUntil } from 'rxjs/operators';
 import { ProgressState } from './constants/progress-state';
 import { FileUpload } from './models/file-upload';
@@ -33,6 +34,11 @@ export type DropZoneTarget = HTMLElement | Document | Window;
 export type FileSource = HTMLInputElement | DropZoneTarget;
 
 const BYTES_PER_MB = 1000 * 1000;
+
+export function getFileExtension(fileName: string): string {
+    const lastIndexOfDot = fileName.lastIndexOf('.');
+    return lastIndexOfDot === -1 ? '' : fileName.slice(lastIndexOfDot + 1);
+}
 
 export class Uploader<FileUploadType extends FileUpload = FileUpload> {
     private _isDraggedOverSubject = new BehaviorSubject<boolean>(false);
@@ -480,7 +486,7 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
         // Filter out disallowed file types/sizes.
         const allowedFiles: File[] = [];
         for (const file of files) {
-            const mimeType = file.type;
+            const mimeType = file.type || lookup(getFileExtension(file.name)) || '';
             // First, check if the file is under the size limit.
             if (!this._fileSizeLimitMb || file.size < this._fileSizeLimitMb * BYTES_PER_MB) {
                 // Then, check if the file type is supported.
