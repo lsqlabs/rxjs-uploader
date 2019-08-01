@@ -124,7 +124,13 @@ export class UploaderDemoComponent implements AfterViewInit {
         },
         allFilesUploadedCallback: (fileUploads) => {
             console.log(fileUploads.length + ' files were uploaded');
-        }
+        },
+        disallowedContentTypeErrorMessage: (file) => {
+            return `${file.name} is an unsupported file type: ${file.type}`;
+        },
+        disallowedContentSizeErrorMessage: (file) => {
+            return `${file.name} is larger than the limit of 100mb.`;
+        },
     })
 
     public ngAfterViewInit(): void {

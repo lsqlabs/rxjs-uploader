@@ -15,4 +15,6 @@ export interface IUploaderConfig<FileUploadType extends FileUpload = FileUpload>
     fileUploadedCallback?: (fileUpload: FileUploadType) => FileUploadCallbackReturn<FileUploadType>;
     allFilesUploadedCallback?: (fileUploads: FileUploadType[]) => FileUploadCallbackReturn<FileUploadType[]>;
     onFileCountLimitExceeded?: (fileCountLimit: number) => void;
+    disallowedContentTypeErrorMessage?: (file: File) => string;
+    disallowedContentSizeErrorMessage?: (file: File) => string;
 }
