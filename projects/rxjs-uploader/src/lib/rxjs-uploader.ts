@@ -56,6 +56,8 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
     private _dropZoneEventListenersMap =
         new Map<DropZoneTarget, { [key: string]: (event: Event) => any }>();
     private _dragAndDropFlagSelector: string;
+    private _disallowedContentTypeErrorMessage: (file: File) => string;
+    private _disallowedContentSizeErrorMessage: (file: File) => string;
     private _subscriptions: Subscription[] = [];
 
     /**
@@ -146,6 +148,12 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
                 }
                 if (typeof config.dragAndDropFlagSelector !== 'undefined') {
                     this.setDragAndDropFlagSelector(config.dragAndDropFlagSelector);
+                }
+                if (typeof config.disallowedContentTypeErrorMessage !== 'undefined') {
+                    this.setDisallowedContentTypeErrorMessage(config.disallowedContentTypeErrorMessage);
+                }
+                if (typeof config.disallowedContentSizeErrorMessage !== 'undefined') {
+                    this.setDisallowedContentSizeErrorMessage(config.disallowedContentSizeErrorMessage);
                 }
             } else {
                 // TODO(dmayerdesign): Remove in v1.4.
@@ -298,6 +306,20 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
 
     public setDragAndDropFlagSelector(selector: string): this {
         this._dragAndDropFlagSelector = selector;
+        return this;
+    }
+
+    public setDisallowedContentTypeErrorMessage(
+        callback: (file: File) => string
+    ): this {
+        this._disallowedContentTypeErrorMessage = callback;
+        return this;
+    }
+
+    public setDisallowedContentSizeErrorMessage(
+        callback: (file: File) => string
+    ): this {
+        this._disallowedContentSizeErrorMessage = callback;
         return this;
     }
 
@@ -488,14 +510,20 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
                     || this._allowedContentTypes.some((contentType) => contentType === mimeType)) {
                     allowedFiles.push(file);
                 } else {
-                    this._errorSubject.next(new DisallowedContentTypeError(
-                        `${file.name} failed to upload because its content type, ${mimeType}, is not allowed.`
-                    ));
+                    let errorMessage = `${file.name} failed to upload because its content type, ${mimeType}, is not allowed.`;
+                    if (this._disallowedContentSizeErrorMessage) {
+                        errorMessage = this._disallowedContentTypeErrorMessage(file);
+                    }
+
+                    this._errorSubject.next(new DisallowedContentTypeError(errorMessage));
                 }
             } else {
-                this._errorSubject.next(new FileSizeLimitExceededError(
-                    `${file.name} is larger than the limit of ${this._fileSizeLimitMb}MB for a single file. Please compress or split the file into smaller files.`
-                ));
+                let errorMessage = `${file.name} is larger than the limit of ${this._fileSizeLimitMb}MB for a single file. Please compress or split the file into smaller files.`;
+                if (this._disallowedContentSizeErrorMessage) {
+                    errorMessage = this._disallowedContentSizeErrorMessage(file);
+                }
+
+                this._errorSubject.next(new FileSizeLimitExceededError(errorMessage));
             }
         }
         const fileUploads = uniq(allowedFiles).map((file: File) => {
