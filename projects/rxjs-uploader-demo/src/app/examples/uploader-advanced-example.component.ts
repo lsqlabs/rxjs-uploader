@@ -14,7 +14,11 @@ import { UploaderFactory } from '../rxjs-uploader.factory';
             class="uploader-zone"
             [ngClass]="{ 'dragged-over': uploader.isDraggedOverStream | async }">
             <div class="text-center">
-                <p><b>Drag and drop files here</b></p>
+                <p>
+                    <b>Drag and drop files here</b>
+                    <br>
+                    (will only accept .png, .jpg, and .gif)
+                </p>
                 <button (click)="selectFiles()">or select files</button>
             </div>
         </div>
@@ -44,7 +48,7 @@ import { UploaderFactory } from '../rxjs-uploader.factory';
     providers: [ UploaderFactory ]
 })
 export class UploaderAdvancedExampleComponent implements AfterViewInit {
-    @ViewChild('uploaderZone') public uploaderZone: ElementRef;
+    @ViewChild('uploaderZone', { static: true }) public uploaderZone: ElementRef;
     public fileUploadsStream: Observable<FileUpload[]>;
     public uploader: Uploader;
     public fileInputElement = Uploader.createFileInputElement('multiple');
