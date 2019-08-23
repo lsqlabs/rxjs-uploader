@@ -505,9 +505,10 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
             const mimeType = file.type;
             // First, check if the file is under the size limit.
             if (!this._fileSizeLimitMb || file.size < this._fileSizeLimitMb * BYTES_PER_MB) {
-                // Then, check if the file type is supported.
+              // Then, check if the file type is supported.
+                console.log(`mimeType: ${mimeType}`);
                 if (!!this._allowedContentTypes.find((contentType) => contentType === '*')
-                    || this._allowedContentTypes.some((contentType) => contentType === mimeType)) {
+                    || this._allowedContentTypes.some((contentType) => mimeType.includes(contentType.replace(/\./g, '')))) {
                     allowedFiles.push(file);
                 } else {
                     let errorMessage = `${file.name} failed to upload because its content type, ${mimeType}, is not allowed.`;
