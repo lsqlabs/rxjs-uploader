@@ -1,6 +1,6 @@
 {
   "name": "rxjs-uploader-demo",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "A simple RxJS-powered interface for uploading files.",
   "author": {
     "name": "lsqlabs",
