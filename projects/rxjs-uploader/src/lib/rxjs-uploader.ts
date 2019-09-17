@@ -19,6 +19,7 @@ import { IUploadRequestOptions } from './models/upload-request-options';
 import { UploaderError, FileSizeLimitExceededError } from './models/uploader-error';
 import { DisallowedContentTypeError, MissingRequestOptionsError } from './models/uploader-error';
 import { IUploaderConfig, FileUploadCallbackReturn } from './models/uploader-config';
+import { setAcceptAttribute } from './helpers';
 
 /** @see https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/readyState */
 export const enum XHRReadyState {
@@ -94,7 +95,7 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
             fileInputElement.setAttribute('multiple', 'multiple');
         }
         if (accept) {
-            fileInputElement.setAttribute('accept', accept);
+            setAcceptAttribute(fileInputElement, accept);
         }
         fileInputElement.style.display = 'none';
         document.body.appendChild(fileInputElement);
@@ -432,7 +433,7 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
 
         if (this._allowedContentTypes.length && this._allowedContentTypes.indexOf('*') === -1) {
             this._fileInputElements.forEach((fileInputElement) => {
-                fileInputElement.setAttribute('accept', this.getInputAccept());
+                setAcceptAttribute(fileInputElement, this.getInputAccept());
             });
         }
 
@@ -506,9 +507,8 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
             // First, check if the file is under the size limit.
             if (!this._fileSizeLimitMb || file.size < this._fileSizeLimitMb * BYTES_PER_MB) {
               // Then, check if the file type is supported.
-                console.log(`mimeType: ${mimeType}`);
                 if (!!this._allowedContentTypes.find((contentType) => contentType === '*')
-                    || this._allowedContentTypes.some((contentType) => mimeType.includes(contentType.replace(/\./g, '')))) {
+                    || this._allowedContentTypes.some((contentType) => contentType === mimeType)) {
                     allowedFiles.push(file);
                 } else {
                     let errorMessage = `${file.name} failed to upload because its content type, ${mimeType}, is not allowed.`;
