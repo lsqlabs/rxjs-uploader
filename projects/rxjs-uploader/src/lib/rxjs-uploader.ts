@@ -512,7 +512,7 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
                     allowedFiles.push(file);
                 } else {
                     let errorMessage = `${file.name} failed to upload because its content type, ${mimeType}, is not allowed.`;
-                    if (this._disallowedContentSizeErrorMessage) {
+                    if (this._disallowedContentTypeErrorMessage) {
                         errorMessage = this._disallowedContentTypeErrorMessage(file);
                     }
 
