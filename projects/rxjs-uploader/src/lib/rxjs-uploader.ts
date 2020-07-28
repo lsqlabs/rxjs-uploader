@@ -44,6 +44,7 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
     private _fileUploadsStreamResetSubject = new Subject<null>();
     private _errorSubject = new Subject<UploaderError>();
     private _areRequestOptionsSet = false;
+    private _uploadFileAsBody = false;
     private _allowedContentTypes: string[] = ['*'];
     private _fileCountLimit: number | (() => number) = 0; // Anything falsy or < 1 means infinity.
     private _fileSizeLimitMb: number;
@@ -134,6 +135,9 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
                 }
                 if (typeof config.requestOptions !== 'undefined') {
                     this.setRequestOptions(config.requestOptions);
+                }
+                if (typeof config.uploadFileAsBody !== 'undefined') {
+                    this.setUploadFileAsBody(config.uploadFileAsBody);
                 }
                 if (typeof config.fileUploadType !== 'undefined') {
                     this.setFileUploadType(config.fileUploadType);
@@ -276,6 +280,11 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
 
     public setFileSizeLimitMb(limit: number): this {
         this._fileSizeLimitMb = limit;
+        return this;
+    }
+
+    public setUploadFileAsBody(uploadFileAsBody: boolean): this {
+        this._uploadFileAsBody = uploadFileAsBody;
         return this;
     }
 
@@ -624,7 +633,12 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
 
     private _uploadFile(fileUpload: FileUploadType): Observable<FileUploadType> {
         let fileUploadSubject = this._fileUploadSubjectsMap.get(fileUpload.id);
-        const request = fileUpload.createRequest();
+        let request;
+        if (this._uploadFileAsBody) {
+            request = fileUpload.createRequestFileAsBody();
+        } else {
+            request = fileUpload.createRequest();
+        }
 
         // TODO: Figure out why _fileUploadSubjectsMap sometimes doesn't have this entry.
         if (!fileUploadSubject) {
@@ -742,6 +756,7 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
                         xhr.setRequestHeader(key, value);
                     });
                 }
+
                 xhr.send(request.body);
 
                 fileUpload.isMarkedForRemovalStream
