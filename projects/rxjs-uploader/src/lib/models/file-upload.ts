@@ -178,6 +178,17 @@ export class FileUpload implements IFileUpload {
         return { method, url, body: formData, headers };
     }
 
+    public createRequestFileAsBody(): {
+        method: HttpMethod,
+        url: string,
+        body: File
+        headers?: { [key: string]: string }
+    } {
+        const { url, headers, method} = this._requestOptions;
+        // Construct the request.
+        return { method, url, body: this.file, headers };
+    }
+
     public reset(): void {
         this._rejected = false;
         this.response = null;

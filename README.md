@@ -90,6 +90,7 @@ export class UploaderDemoComponent implements AfterViewInit {
         ],
         fileCountLimit: 100,
         fileSizeLimitMb: 10,
+        uploadFileAsBody: false // Default is false. When true, the file will be the body of the request, instead of being sent as form data.
         onFileCountLimitExceeded: (fileCountLimit) => alert(
             'You attempted to upload more than the limit of '
             + fileCountLimit + ' files'
