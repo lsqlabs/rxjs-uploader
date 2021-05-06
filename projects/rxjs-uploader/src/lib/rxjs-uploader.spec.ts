@@ -1,7 +1,6 @@
 import { Uploader } from './rxjs-uploader';
 import { debounceTime } from 'rxjs/operators';
 import { FileUpload } from './models/file-upload';
-import { Observable } from 'rxjs';
 
 const mockUploadUrl = 'https://www.mocky.io/v2/5185415ba171ea3a00704eed';
 
@@ -66,7 +65,7 @@ describe('RxJs Uploader', () => {
         const dataTransfer = new DataTransfer();
         dataTransfer.items.add(new File(['test'], 'test-upload-1.txt', { type: 'text/plain' }));
         dataTransfer.items.add(new File(['test'], 'test-upload-2.txt', { type: 'text/plain' }));
-        dataTransfer.items.add(new File(['test'], 'test-upload.txt'));
+        dataTransfer.items.add(new File(['test'], 'test-upload.txt', { type: 'text/csv' }));
         uploader.getDefaultFileSource().files = dataTransfer.files;
 
         uploader
@@ -125,8 +124,7 @@ describe('RxJs Uploader', () => {
         const allFilesQueuedCbSpy = jasmine.createSpy('allFilesQueuedCb', allFilesQueuedCb).and.callThrough();
         dataTransfer1.items.add(new File(['test'], 'test-upload-1.txt', { type: 'text/plain' }));
         dataTransfer1.items.add(new File(['test'], 'test-upload-2.txt', { type: 'text/plain' }));
-        dataTransfer1.items.add(new File(['test'], 'test-upload-3.txt', { type: 'text/plain' }));
-        dataTransfer1.items.add(new File(['test'], 'test-upload-4'));
+        dataTransfer1.items.add(new File(['test'], 'test-upload-3.txt', { type: '' }));
         multiFileInput1.files = dataTransfer1.files;
 
         dataTransfer2.items.add(new File(['test'], 'test-upload-5.txt', { type: 'text/plain' }));
