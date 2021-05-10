@@ -512,15 +512,19 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
         // Filter out disallowed file types/sizes.
         const allowedFiles: File[] = [];
         for (const file of files) {
-            const mimeType = file.type;
+            const fileType = file.type;
             // First, check if the file is under the size limit.
             if (!this._fileSizeLimitMb || file.size < this._fileSizeLimitMb * BYTES_PER_MB) {
-              // Then, check if the file type is supported.
-                if (!!this._allowedContentTypes.find((contentType) => contentType === '*')
-                    || this._allowedContentTypes.some((contentType) => contentType === mimeType)) {
+                // Then, check if the file type is supported.
+                // FIXME(dmayerdesign): Look into why File.type is sometimes empty in Edge.
+                // As a result, when the fileType is empty, we need to admit we don't know anything
+                // about the file type and just allow the check to pass.
+                if (fileType === ''
+                    || !!this._allowedContentTypes.find((contentType) => contentType === '*')
+                    || this._allowedContentTypes.some((contentType) => contentType === fileType)) {
                     allowedFiles.push(file);
                 } else {
-                    let errorMessage = `${file.name} failed to upload because its content type, ${mimeType}, is not allowed.`;
+                    let errorMessage = `${file.name} failed to upload because its content type, ${fileType}, is not allowed.`;
                     if (this._disallowedContentTypeErrorMessage) {
                         errorMessage = this._disallowedContentTypeErrorMessage(file);
                     }
@@ -633,7 +637,7 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
 
     private _uploadFile(fileUpload: FileUploadType): Observable<FileUploadType> {
         let fileUploadSubject = this._fileUploadSubjectsMap.get(fileUpload.id);
-        let request;
+        let request: any;
         if (this._uploadFileAsBody) {
             request = fileUpload.createRequestFileAsBody();
         } else {
@@ -930,7 +934,8 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
                 return [];
             } else {
                 _currentFileUploads.forEach((fileUpload) => {
-                    if (fileUpload.isMarkedForRemoval) {
+                    if (fileUpload.isMarkedForRemoval && this._fileUploadSubjectsMap.has(fileUpload.id)) {
+                        this._fileUploadSubjectsMap.get(fileUpload.id).unsubscribe();
                         this._fileUploadSubjectsMap.delete(fileUpload.id);
                     }
                 });
