@@ -1,32 +1,32 @@
 {
-  "name": "rxjs-uploader",
-  "version": "1.5.0",
-  "license": "MIT",
-  "description": "A simple RxJS-powered interface for uploading files.",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/lsqlabs/rxjs-uploader.git"
-  },
-  "author": {
-    "name": "lsqlabs",
-    "email": "developers@lsq.com"
-  },
-  "keywords": [
-    "uploader",
-    "file upload",
-    "rxjs uploader",
-    "filelist",
-    "rxjs"
-  ],
-  "bugs": {
-    "url": "https://github.com/lsqlabs/rxjs-uploader/issues"
-  },
-  "homepage": "https://github.com/lsqlabs/rxjs-uploader",
-  "dependencies": {
-    "lodash": "4.17.15"
-  },
-  "peerDependencies": {
-    "core-js": "^3.0.0",
-    "rxjs": "^6.5.1"
-  }
+    "name": "rxjs-uploader",
+    "version": "1.5.1",
+    "license": "MIT",
+    "description": "A simple RxJS-powered interface for uploading files.",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/lsqlabs/rxjs-uploader.git"
+    },
+    "author": {
+        "name": "lsqlabs",
+        "email": "developers@lsq.com"
+    },
+    "keywords": [
+        "uploader",
+        "file upload",
+        "rxjs uploader",
+        "filelist",
+        "rxjs"
+    ],
+    "bugs": {
+        "url": "https://github.com/lsqlabs/rxjs-uploader/issues"
+    },
+    "homepage": "https://github.com/lsqlabs/rxjs-uploader",
+    "dependencies": {
+        "lodash": "4.17.21"
+    },
+    "peerDependencies": {
+        "core-js": "^3.0.0",
+        "rxjs": "^6.5.1"
+    }
 }
