@@ -10,6 +10,12 @@ Stackblitz: https://stackblitz.com/edit/rxjs-uploader-example
 
 `npm install rxjs-uploader`
 
+## Publishing Updates to npm
+1. Make sure you are logged in via cli to the npm account that owns the package (if you work at LSQ Funding, check the 1Password vault).
+2. Increment the version number in [projects/rxjs-uploader/package.json](https://github.com/lsqlabs/rxjs-uploader/blob/master/projects/rxjs-uploader/package.json) appropriately.
+2. `npm run build:lib`
+3. `npm run publish`
+
 ## Basic Usage
 
 ```ts
