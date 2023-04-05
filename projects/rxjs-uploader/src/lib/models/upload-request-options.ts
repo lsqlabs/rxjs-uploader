@@ -5,4 +5,5 @@ export interface IUploadRequestOptions {
     method?: HttpMethod;
     formData?: FormData | { [key: string]: string };
     headers?: { [key: string]: string };
+    withCredentials?: boolean;
 }
