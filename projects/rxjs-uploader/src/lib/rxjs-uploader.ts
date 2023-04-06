@@ -673,7 +673,7 @@ export class Uploader<FileUploadType extends FileUpload = FileUpload> {
                 const progressStream = fromEvent(xhr.upload, 'progress');
                 const completedStream = fromEvent(xhr, 'load');
                 const xhrErrorStream = fromEvent(xhr, 'error');
-                xhr.withCredentials = false;
+                xhr.withCredentials = fileUpload.requestOptions.withCredentials || false;
 
                 this._subscribeTemporarily(
                     merge(progressStream, completedStream)

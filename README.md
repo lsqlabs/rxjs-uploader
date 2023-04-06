@@ -73,7 +73,7 @@ uploader.selectFiles();
 
 ## Advanced example (using Angular)
 
-```javascript
+```typescript
 @Component({
     selector: 'uploader-demo',
     template: `
@@ -96,7 +96,7 @@ export class UploaderDemoComponent implements AfterViewInit {
         ],
         fileCountLimit: 100,
         fileSizeLimitMb: 10,
-        uploadFileAsBody: false // Default is false. When true, the file will be the body of the request, instead of being sent as form data.
+        uploadFileAsBody: false, // Default is false. When true, the file will be the body of the request, instead of being sent as form data.
         onFileCountLimitExceeded: (fileCountLimit) => alert(
             'You attempted to upload more than the limit of '
             + fileCountLimit + ' files'
@@ -107,7 +107,8 @@ export class UploaderDemoComponent implements AfterViewInit {
                     + fileUpload.name,
                 headers: {
                     'content-length': `${fileUpload.file.size}`
-                }
+                },
+                withCredentials: false // Default is false. When true, the XHR withCredentials flag will be set to allow propagating cookies.
             };
         },
         allFilesQueuedCallback: (fileUploads) => {
@@ -325,6 +326,7 @@ interface IUploadRequestOptions {
     method?: HttpMethod;
     formData?: FormData;
     headers?: { [key: string]: string };
+    withCredentials?: boolean;
 }
 
 enum ProgressState {

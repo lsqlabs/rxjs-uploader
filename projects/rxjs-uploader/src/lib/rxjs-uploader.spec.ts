@@ -132,7 +132,8 @@ describe('RxJs Uploader', () => {
 
         const uploader = new Uploader()
             .setRequestOptions({
-                url: 'https://api.myawesomeservice.com/upload'
+                url: 'https://api.myawesomeservice.com/upload',
+                withCredentials: true
             })
             .setRequestOptionsFactory(async (fileUpload) => {
                 return {
